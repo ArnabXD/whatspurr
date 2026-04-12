@@ -1,6 +1,6 @@
 {
   "name": "@arnabxd/whatspurr",
-  "version": "0.1.0-rc-06",
+  "version": "0.1.0-rc-07",
   "description": "A grammY-style TypeScript library for WhatsApp, powered by whatsmeow (Go)",
   "type": "module",
   "main": "./dist/index.js",
