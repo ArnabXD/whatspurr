@@ -62,6 +62,11 @@ export class Context {
     return this.message?.isGroup ?? false;
   }
 
+  /** Whether this message was sent by us (outgoing) */
+  get isFromMe(): boolean {
+    return this.message?.isFromMe ?? false;
+  }
+
   /** Reply with a text message to the current chat */
   async reply(text: string): Promise<SendResult> {
     const chat = this.chat;

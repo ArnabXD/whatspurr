@@ -126,6 +126,7 @@ export class Bridge extends EventEmitter {
     const dbName = this.config.dbName ?? "whatspurr.db";
 
     const autoPresence = this.config.autoPresence !== false; // default true
+    const subscribeOutgoing = this.config.subscribeOutgoing === true; // default false
 
     const args = [
       "--token", this.authToken,
@@ -133,6 +134,7 @@ export class Bridge extends EventEmitter {
       "--db-name", dbName,
       "--log-level", logLevel,
       ...(autoPresence ? ["--auto-presence"] : []),
+      ...(subscribeOutgoing ? ["--subscribe-outgoing"] : []),
     ];
 
     this.process = spawn(binaryPath, args, {

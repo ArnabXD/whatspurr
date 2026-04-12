@@ -142,8 +142,8 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 }
 
 func (s *Session) handleMessageEvent(v *events.Message) {
-	// Skip outgoing messages (sent by us)
-	if v.Info.IsFromMe {
+	// Skip outgoing messages unless subscribed
+	if v.Info.IsFromMe && !subscribeOutgoing {
 		return
 	}
 
@@ -156,6 +156,7 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		"pushName":  v.Info.PushName,
 		"timestamp": v.Info.Timestamp.Unix(),
 		"isGroup":   v.Info.IsGroup,
+		"isFromMe":  v.Info.IsFromMe,
 	}
 
 	switch {

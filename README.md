@@ -69,8 +69,9 @@ const wa = new WhatsApp({
   logLevel: "info",                     // debug | info | warn | error
   binaryPath: "/path/to/bridge",        // Use a specific binary (skip auto-download)
   binaryRepo: "ArnabXD/whatspurr",      // GitHub owner/repo for binary downloads
-  binaryVersion: "v0.1.0",             // Pin a release version (default: "latest")
+  binaryVersion: "v0.1.0",              // Pin a release version (default: "latest")
   autoPresence: true,                   // Send "available" presence on connect (default: true)
+  subscribeOutgoing: false,              // Receive outgoing messages in updates (default: false)
 });
 ```
 

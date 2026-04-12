@@ -14,6 +14,8 @@ export interface WhatsAppConfig {
   logLevel?: "debug" | "info" | "warn" | "error";
   /** Automatically send "available" presence on connect. Default: true */
   autoPresence?: boolean;
+  /** Subscribe to outgoing messages (sent by us). Default: false */
+  subscribeOutgoing?: boolean;
   /** GitHub owner/repo for binary downloads. Default: "ArnabXD/whatspurr" */
   binaryRepo?: string;
   /** Version tag to download. Default: "latest" */
@@ -38,6 +40,7 @@ export interface MessageInfo {
   pushName: string;
   timestamp: number;
   isGroup: boolean;
+  isFromMe: boolean;
 }
 
 export interface TextMessage extends MessageInfo {

@@ -27,11 +27,12 @@ import (
 var bridgeLog waLog.Logger
 
 var (
-	authToken    string
-	sessionDir   string
-	dbName       string
-	logLevel     string
-	autoPresence bool
+	authToken         string
+	sessionDir        string
+	dbName            string
+	logLevel          string
+	autoPresence      bool
+	subscribeOutgoing bool
 )
 
 func main() {
@@ -40,6 +41,7 @@ func main() {
 	flag.StringVar(&dbName, "db-name", "whatspurr.db", "SQLite database filename")
 	flag.StringVar(&logLevel, "log-level", "info", "Log level: debug, info, warn, error")
 	flag.BoolVar(&autoPresence, "auto-presence", false, "Send available presence on connect")
+	flag.BoolVar(&subscribeOutgoing, "subscribe-outgoing", false, "Forward outgoing (sent by us) messages to TS")
 	flag.Parse()
 
 	if authToken == "" {

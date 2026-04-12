@@ -98,8 +98,9 @@ sequenceDiagram
 
     WS->>WM: Encrypted message
     WM->>Handler: *events.Message
+    Handler->>Handler: Skip if IsFromMe<br>and !subscribeOutgoing
     Handler->>Handler: Parse message type<br>(text/image/video/...)
-    Handler->>Session: sendEvent("message", data)
+    Handler->>Session: sendEvent("message", data)<br>includes isFromMe flag
     Session->>Bridge: WS JSON: {"type":"event","event":"message","data":{...}}
     Bridge->>WA: emit("event", eventData)
     WA->>Ctx: new Context(eventData, api)
@@ -150,6 +151,7 @@ graph LR
         C3["send_reaction {to, messageId, emoji}"]
         C4["get_group_info {jid}"]
         C5["set_presence {type}"]
+        C6["send_chat_presence {to, state, media}"]
     end
 
     subgraph "Go → TS (Events)"
@@ -174,7 +176,7 @@ graph LR
 
 ### Event format
 ```json
-{"type": "event", "event": "message", "data": {"id": "...", "from": "...", "text": "..."}}
+{"type": "event", "event": "message", "data": {"id": "...", "from": "...", "text": "...", "isFromMe": false}}
 ```
 
 ## Security Model
