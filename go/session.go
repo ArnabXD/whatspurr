@@ -51,6 +51,7 @@ type Session struct {
 	conn      *websocket.Conn
 	mu        sync.Mutex
 	connected bool
+	handlers  map[string]commandHandler
 }
 
 // serveConnected runs the read pump for an already-accepted connection.
@@ -105,32 +106,23 @@ func (s *Session) serveConnected(conn *websocket.Conn) {
 }
 
 func (s *Session) sendResponse(resp Response) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.conn == nil {
-		return
-	}
-
 	data, err := json.Marshal(resp)
 	if err != nil {
 		bridgeLog.Errorf("Failed to marshal response: %v", err)
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.conn == nil {
+		return
+	}
 	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
 		bridgeLog.Warnf("Failed to write response: %v", err)
 	}
 }
 
 func (s *Session) sendEvent(eventName string, eventData interface{}) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.conn == nil {
-		return
-	}
-
 	ev := Event{
 		Type:      "event",
 		EventName: eventName,
@@ -143,6 +135,11 @@ func (s *Session) sendEvent(eventName string, eventData interface{}) {
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.conn == nil {
+		return
+	}
 	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
 		bridgeLog.Warnf("Failed to write event: %v", err)
 	}

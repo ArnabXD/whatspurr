@@ -84,6 +84,7 @@ func main() {
 		client: client,
 		mu:     sync.Mutex{},
 	}
+	session.handlers = session.buildCommandHandlers()
 
 	// Register whatsmeow event handler
 	client.AddEventHandler(session.handleWhatsmeowEvent)

@@ -159,16 +159,26 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		"isFromMe":  v.Info.IsFromMe,
 	}
 
+	// Reactions use a separate event type — handle and return early
+	if rm := msg.GetReactionMessage(); rm != nil {
+		s.sendEvent("message_reaction", map[string]interface{}{
+			"from":      v.Info.Sender.String(),
+			"chat":      v.Info.Chat.String(),
+			"messageId": rm.GetKey().GetID(),
+			"emoji":     rm.GetText(),
+			"timestamp": v.Info.Timestamp.Unix(),
+		})
+		return
+	}
+
 	switch {
 	case msg.GetConversation() != "":
 		base["type"] = "text"
 		base["text"] = msg.GetConversation()
-		s.sendEvent("message", base)
 
 	case msg.GetExtendedTextMessage() != nil:
 		base["type"] = "text"
 		base["text"] = msg.GetExtendedTextMessage().GetText()
-		s.sendEvent("message", base)
 
 	case msg.GetImageMessage() != nil:
 		im := msg.GetImageMessage()
@@ -176,7 +186,6 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["caption"] = im.GetCaption()
 		base["mimetype"] = im.GetMimetype()
 		base["mediaRef"] = encodeMediaRef(v)
-		s.sendEvent("message", base)
 
 	case msg.GetVideoMessage() != nil:
 		vm := msg.GetVideoMessage()
@@ -184,14 +193,12 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["caption"] = vm.GetCaption()
 		base["mimetype"] = vm.GetMimetype()
 		base["mediaRef"] = encodeMediaRef(v)
-		s.sendEvent("message", base)
 
 	case msg.GetAudioMessage() != nil:
 		am := msg.GetAudioMessage()
 		base["type"] = "audio"
 		base["mimetype"] = am.GetMimetype()
 		base["mediaRef"] = encodeMediaRef(v)
-		s.sendEvent("message", base)
 
 	case msg.GetDocumentMessage() != nil:
 		dm := msg.GetDocumentMessage()
@@ -200,21 +207,18 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["mimetype"] = dm.GetMimetype()
 		base["filename"] = dm.GetFileName()
 		base["mediaRef"] = encodeMediaRef(v)
-		s.sendEvent("message", base)
 
 	case msg.GetStickerMessage() != nil:
 		sm := msg.GetStickerMessage()
 		base["type"] = "sticker"
 		base["mimetype"] = sm.GetMimetype()
 		base["mediaRef"] = encodeMediaRef(v)
-		s.sendEvent("message", base)
 
 	case msg.GetContactMessage() != nil:
 		cm := msg.GetContactMessage()
 		base["type"] = "contact"
 		base["displayName"] = cm.GetDisplayName()
 		base["vcard"] = cm.GetVcard()
-		s.sendEvent("message", base)
 
 	case msg.GetLocationMessage() != nil:
 		lm := msg.GetLocationMessage()
@@ -223,18 +227,12 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["longitude"] = lm.GetDegreesLongitude()
 		base["name"] = lm.GetName()
 		base["address"] = lm.GetAddress()
-		s.sendEvent("message", base)
 
-	case msg.GetReactionMessage() != nil:
-		rm := msg.GetReactionMessage()
-		s.sendEvent("message_reaction", map[string]interface{}{
-			"from":      v.Info.Sender.String(),
-			"chat":      v.Info.Chat.String(),
-			"messageId": rm.GetKey().GetID(),
-			"emoji":     rm.GetText(),
-			"timestamp": v.Info.Timestamp.Unix(),
-		})
+	default:
+		return // unknown message type, don't emit
 	}
+
+	s.sendEvent("message", base)
 }
 
 // encodeMediaRef creates an opaque reference string for media download.
