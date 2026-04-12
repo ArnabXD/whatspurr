@@ -29,11 +29,14 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "changelog": "bunx changelogen",
+    "release": "bunx changelogen --release",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
     "@types/bun": "latest",
+    "changelogen": "^0.6.2",
     "vitepress": "^1.6.4"
   },
   "peerDependencies": {

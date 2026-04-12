@@ -52,6 +52,17 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install
+
+      - name: Generate changelog
+        run: bunx changelogen --dry > RELEASE_NOTES.md
+
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
@@ -60,7 +71,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: bridge-*
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
 
   publish-npm:
     needs: release
