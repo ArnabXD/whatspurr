@@ -36,5 +36,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Go sidecar binary
 bin/
 
+# Cross-compiled release binaries
+dist/
+
 # Session data
 session/

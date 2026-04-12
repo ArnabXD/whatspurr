@@ -8,7 +8,7 @@ A grammY-style TypeScript library for WhatsApp, powered by [whatsmeow](https://g
 bun install
 ```
 
-## Build the Go bridge
+The Go bridge binary is automatically downloaded on first `wa.start()`. To build from source instead:
 
 ```bash
 bun run build:go
@@ -50,13 +50,24 @@ wa.on("message:text", async (ctx) => {
   await ctx.reply(`Echo: ${ctx.text}`);
 });
 
-// Start
+// Start (downloads the Go bridge binary on first run)
 await wa.start();
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
   await wa.stop();
   process.exit(0);
+});
+```
+
+## Configuration
+
+```ts
+const wa = new WhatsApp({
+  sessionDir: "./session",       // Session/auth data directory
+  logLevel: "info",              // debug | info | warn | error
+  binaryPath: "/path/to/bridge", // Use a specific binary (skip auto-download)
+  binaryVersion: "v0.1.0",      // Pin a release version (default: "latest")
 });
 ```
 

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build:go": "bun run scripts/build-go.ts",
+    "release:go": "bun run scripts/release.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

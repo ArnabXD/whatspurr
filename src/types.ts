@@ -8,12 +8,16 @@ export interface WhatsAppConfig {
   sessionDir?: string;
   /** SQLite database filename. Default: "whatspurr.db" */
   dbName?: string;
-  /** Path to Go bridge binary. Default: auto-detect in bin/ */
+  /** Path to Go bridge binary. Default: auto-detect in bin/, download if missing */
   binaryPath?: string;
   /** Log level for Go sidecar: "debug" | "info" | "warn" | "error" */
   logLevel?: "debug" | "info" | "warn" | "error";
   /** Automatically send "available" presence on connect. Default: true */
   autoPresence?: boolean;
+  /** GitHub owner/repo for binary downloads. Default: "ArnabXD/whatspurr" */
+  binaryRepo?: string;
+  /** Version tag to download. Default: "latest" */
+  binaryVersion?: string;
 }
 
 // ── Messages ─────────────────────────────────────────────────────────────────

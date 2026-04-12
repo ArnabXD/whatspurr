@@ -1,8 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID, randomBytes } from "node:crypto";
-import { platform } from "node:os";
-import { join } from "node:path";
-import { existsSync } from "node:fs";
+import { platform, arch } from "node:os";
+import { join, dirname } from "node:path";
+import { existsSync, mkdirSync, chmodSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import type {
   Command,
@@ -13,14 +13,34 @@ import type {
 } from "./types.ts";
 
 const DEFAULT_SESSION_DIR = "./session";
+const DEFAULT_BINARY_REPO = "ArnabXD/whatspurr";
 const STARTUP_TIMEOUT_MS = 10_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const LISTEN_ADDR_RE = /^127\.0\.0\.1:\d+$/;
 
-function findBinary(configPath?: string): string {
-  if (configPath) return configPath;
+function getPlatformKey(): { goos: string; goarch: string; ext: string } {
+  const os = platform();
+  const cpu = arch();
 
-  const ext = platform() === "win32" ? ".exe" : "";
+  const goos = os === "win32" ? "windows" : os;
+  const goarch = cpu === "x64" ? "amd64" : cpu === "arm64" ? "arm64" : cpu;
+  const ext = os === "win32" ? ".exe" : "";
+
+  return { goos, goarch, ext };
+}
+
+function getBinaryPath(): string {
+  const { ext } = getPlatformKey();
+  return join(import.meta.dirname ?? ".", "..", "bin", `bridge${ext}`);
+}
+
+function findBinary(configPath?: string): string | null {
+  if (configPath) {
+    if (existsSync(configPath)) return configPath;
+    throw new Error(`Specified binary not found: ${configPath}`);
+  }
+
+  const { ext } = getPlatformKey();
   const candidates = [
     join(import.meta.dirname ?? ".", "..", "bin", `bridge${ext}`),
     join("bin", `bridge${ext}`),
@@ -28,10 +48,47 @@ function findBinary(configPath?: string): string {
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
-  throw new Error(
-    `Go bridge binary not found. Searched: ${candidates.join(", ")}. ` +
-      `Run "bun run scripts/build-go.ts" to compile it.`
-  );
+  return null;
+}
+
+async function downloadBinary(repo: string, version: string): Promise<string> {
+  const { goos, goarch, ext } = getPlatformKey();
+  const assetName = `bridge-${goos}-${goarch}${ext}`;
+
+  const baseUrl = version === "latest"
+    ? `https://github.com/${repo}/releases/latest/download/${assetName}`
+    : `https://github.com/${repo}/releases/download/${version}/${assetName}`;
+
+  const dest = getBinaryPath();
+  const destDir = dirname(dest);
+  if (!existsSync(destDir)) {
+    mkdirSync(destDir, { recursive: true });
+  }
+
+  console.log(`Downloading bridge binary from ${repo} (${version})...`);
+  console.log(`  ${goos}/${goarch} → ${dest}`);
+
+  const resp = await fetch(baseUrl, { redirect: "follow" });
+  if (!resp.ok) {
+    throw new Error(
+      `Failed to download binary: ${resp.status} ${resp.statusText}\n` +
+      `  URL: ${baseUrl}\n` +
+      `  Try building locally: bun run scripts/build-go.ts`
+    );
+  }
+
+  const buffer = await resp.arrayBuffer();
+  const tmpDest = dest + ".tmp";
+  const fs = await import("node:fs/promises");
+  await fs.writeFile(tmpDest, Buffer.from(buffer));
+  await fs.rename(tmpDest, dest);
+
+  if (goos !== "windows") {
+    chmodSync(dest, 0o755);
+  }
+
+  console.log(`  Done (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB)`);
+  return dest;
 }
 
 export class Bridge extends EventEmitter {
@@ -57,7 +114,12 @@ export class Bridge extends EventEmitter {
   }
 
   async start(): Promise<void> {
-    const binaryPath = findBinary(this.config.binaryPath);
+    let binaryPath = findBinary(this.config.binaryPath);
+    if (!binaryPath) {
+      const repo = this.config.binaryRepo ?? DEFAULT_BINARY_REPO;
+      const version = this.config.binaryVersion ?? "latest";
+      binaryPath = await downloadBinary(repo, version);
+    }
     const sessionDir = this.config.sessionDir ?? DEFAULT_SESSION_DIR;
     const logLevel = this.config.logLevel ?? "info";
 
