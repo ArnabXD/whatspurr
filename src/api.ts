@@ -64,6 +64,14 @@ export class Api {
     return result as unknown as GroupInfo;
   }
 
+  async sendChatPresence(
+    to: JID,
+    state: "composing" | "paused",
+    media?: "text" | "audio",
+  ): Promise<void> {
+    await this.bridge.send("send_chat_presence", { to, state, media });
+  }
+
   async setPresence(type: "available" | "unavailable"): Promise<void> {
     await this.bridge.send("set_presence", { type });
   }

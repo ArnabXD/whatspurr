@@ -97,6 +97,27 @@ export class Context {
     return this.api.sendDocument(chat, data, options);
   }
 
+  /** Send a "typing" indicator to the current chat */
+  async sendTyping(): Promise<void> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send typing to");
+    return this.api.sendChatPresence(chat, "composing");
+  }
+
+  /** Send a "recording audio" indicator to the current chat */
+  async sendRecording(): Promise<void> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send recording to");
+    return this.api.sendChatPresence(chat, "composing", "audio");
+  }
+
+  /** Clear the typing/recording indicator in the current chat */
+  async sendPaused(): Promise<void> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send paused to");
+    return this.api.sendChatPresence(chat, "paused");
+  }
+
   /** React to the current message with an emoji */
   async react(emoji: string): Promise<SendResult> {
     const chat = this.chat;

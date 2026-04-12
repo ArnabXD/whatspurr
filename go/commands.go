@@ -31,6 +31,8 @@ func (s *Session) handleCommand(cmd Command) {
 		resp = s.cmdSendReaction(cmd)
 	case "get_group_info":
 		resp = s.cmdGetGroupInfo(cmd)
+	case "send_chat_presence":
+		resp = s.cmdSendChatPresence(cmd)
 	case "set_presence":
 		resp = s.cmdSetPresence(cmd)
 	default:
@@ -265,6 +267,44 @@ func (s *Session) cmdGetGroupInfo(cmd Command) Response {
 		"participants": participants,
 		"createdAt":    info.GroupCreated.Unix(),
 	}}
+}
+
+func (s *Session) cmdSendChatPresence(cmd Command) Response {
+	to, err := s.parseJID(cmd.Params, "to")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	state, _ := cmd.Params["state"].(string)
+	media, _ := cmd.Params["media"].(string)
+
+	var presence types.ChatPresence
+	switch state {
+	case "composing":
+		presence = types.ChatPresenceComposing
+	case "paused":
+		presence = types.ChatPresencePaused
+	default:
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "state must be 'composing' or 'paused'"}}
+	}
+
+	var mediaPresence types.ChatPresenceMedia
+	switch media {
+	case "audio":
+		mediaPresence = types.ChatPresenceMediaAudio
+	case "", "text":
+		mediaPresence = types.ChatPresenceMediaText
+	default:
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "media must be 'text' or 'audio'"}}
+	}
+
+	err = s.getClient().SendChatPresence(context.Background(), to, presence, mediaPresence)
+	if err != nil {
+		bridgeLog.Warnf("send_chat_presence error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to send chat presence"}}
+	}
+
+	return Response{Result: map[string]interface{}{"ok": true}}
 }
 
 func (s *Session) cmdSetPresence(cmd Command) Response {
