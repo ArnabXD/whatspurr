@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { Bridge } from "./bridge.ts";
-import type { DownloadResult, GroupInfo, JID, MediaSendOptions, QuoteOptions, SendOptions, SendResult } from "./types.ts";
+import type {
+  DownloadResult,
+  GroupInfo,
+  JID,
+  MediaSendOptions,
+  QuoteOptions,
+  SendOptions,
+  SendResult,
+} from "./types.ts";
 
 const DEFAULT_DOWNLOAD_DIR = "./downloads";
 
@@ -26,7 +34,10 @@ function mimeToExt(mimetype?: string): string {
 export class Api {
   private downloadDir: string;
 
-  constructor(private bridge: Bridge, downloadDir?: string) {
+  constructor(
+    private bridge: Bridge,
+    downloadDir?: string,
+  ) {
     this.downloadDir = downloadDir ?? DEFAULT_DOWNLOAD_DIR;
   }
 

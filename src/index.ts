@@ -34,12 +34,12 @@ export type {
   MessageType,
   // Middleware
   MiddlewareFn,
-  // Quote options
-  QuoteOptions,
   NarrowContext,
   NextFn,
   PresenceEvent,
   QrEvent,
+  // Quote options
+  QuoteOptions,
   ReactionEvent,
   ReceiptEvent,
   // API
