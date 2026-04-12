@@ -2,6 +2,7 @@ import type { Api } from "./api.ts";
 import type {
   ConnectedEvent,
   DisconnectedEvent,
+  DownloadResult,
   EventData,
   GroupJoinEvent,
   GroupLeaveEvent,
@@ -228,6 +229,13 @@ export class Context {
     const msgId = this.message?.id;
     if (!chat || !from || !msgId) throw new Error("No message to mark as read");
     return this.api.markRead(chat, from, [msgId]);
+  }
+
+  /** Download media from the current message to disk */
+  async downloadMedia(path?: string): Promise<DownloadResult> {
+    const msg = this.message;
+    if (!msg || !("mediaRef" in msg)) throw new Error("No media to download");
+    return this.api.downloadMedia(msg.mediaRef, path, msg.mimetype);
   }
 
   /** React to the current message with an emoji */

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"go.mau.fi/whatsmeow"
@@ -23,6 +26,7 @@ func (s *Session) buildCommandHandlers() map[string]commandHandler {
 		"send_audio":         func(cmd Command) Response { return s.cmdSendMedia(cmd, "audio") },
 		"send_document":      func(cmd Command) Response { return s.cmdSendMedia(cmd, "document") },
 		"send_reaction":      s.cmdSendReaction,
+		"download_media":     s.cmdDownloadMedia,
 		"get_group_info":     s.cmdGetGroupInfo,
 		"send_chat_presence": s.cmdSendChatPresence,
 		"mark_read":          s.cmdMarkRead,
@@ -254,6 +258,85 @@ func (s *Session) cmdSendReaction(cmd Command) Response {
 
 	return Response{Result: map[string]interface{}{
 		"messageId": resp.ID,
+	}}
+}
+
+func (s *Session) cmdDownloadMedia(cmd Command) Response {
+	ref, _ := cmd.Params["mediaRef"].(string)
+	if ref == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'mediaRef' parameter"}}
+	}
+
+	destPath, _ := cmd.Params["path"].(string)
+	if destPath == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'path' parameter"}}
+	}
+
+	parts := strings.SplitN(ref, ":", 2)
+	if len(parts) != 2 {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "invalid mediaRef format"}}
+	}
+	mediaType, encoded := parts[0], parts[1]
+
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "invalid mediaRef encoding"}}
+	}
+
+	var downloadable whatsmeow.DownloadableMessage
+	switch mediaType {
+	case "image":
+		msg := &waE2E.ImageMessage{}
+		if err := proto.Unmarshal(raw, msg); err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: "corrupt mediaRef"}}
+		}
+		downloadable = msg
+	case "video":
+		msg := &waE2E.VideoMessage{}
+		if err := proto.Unmarshal(raw, msg); err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: "corrupt mediaRef"}}
+		}
+		downloadable = msg
+	case "audio":
+		msg := &waE2E.AudioMessage{}
+		if err := proto.Unmarshal(raw, msg); err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: "corrupt mediaRef"}}
+		}
+		downloadable = msg
+	case "document":
+		msg := &waE2E.DocumentMessage{}
+		if err := proto.Unmarshal(raw, msg); err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: "corrupt mediaRef"}}
+		}
+		downloadable = msg
+	case "sticker":
+		msg := &waE2E.StickerMessage{}
+		if err := proto.Unmarshal(raw, msg); err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: "corrupt mediaRef"}}
+		}
+		downloadable = msg
+	default:
+		return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("unsupported media type: %s", mediaType)}}
+	}
+
+	data, err := s.client.Download(context.Background(), downloadable)
+	if err != nil {
+		bridgeLog.Warnf("download_media error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1009, Message: "media download failed"}}
+	}
+
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return Response{Error: &ErrorInfo{Code: 1009, Message: fmt.Sprintf("failed to create directory: %v", err)}}
+	}
+
+	if err := os.WriteFile(destPath, data, 0644); err != nil {
+		return Response{Error: &ErrorInfo{Code: 1009, Message: fmt.Sprintf("failed to write file: %v", err)}}
+	}
+
+	return Response{Result: map[string]interface{}{
+		"path": destPath,
+		"size": len(data),
 	}}
 }
 

@@ -1,8 +1,34 @@
+import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import type { Bridge } from "./bridge.ts";
-import type { GroupInfo, JID, MediaSendOptions, QuoteOptions, SendOptions, SendResult } from "./types.ts";
+import type { DownloadResult, GroupInfo, JID, MediaSendOptions, QuoteOptions, SendOptions, SendResult } from "./types.ts";
+
+const DEFAULT_DOWNLOAD_DIR = "./downloads";
+
+const MIME_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "video/mp4": ".mp4",
+  "audio/ogg": ".ogg",
+  "audio/mpeg": ".mp3",
+  "application/pdf": ".pdf",
+};
+
+/** Fallback: derive extension from mimetype subtype (e.g. "audio/mp4" → ".mp4") */
+function mimeToExt(mimetype?: string): string {
+  if (!mimetype) return "";
+  const sub = mimetype.split("/")[1];
+  if (!sub) return "";
+  return `.${sub.split(";")[0]}`;
+}
 
 export class Api {
-  constructor(private bridge: Bridge) {}
+  private downloadDir: string;
+
+  constructor(private bridge: Bridge, downloadDir?: string) {
+    this.downloadDir = downloadDir ?? DEFAULT_DOWNLOAD_DIR;
+  }
 
   private quoteParams(options: QuoteOptions) {
     if (!options.quotedMessageId) return {};
@@ -64,6 +90,13 @@ export class Api {
   async sendReaction(to: JID, messageId: string, emoji: string): Promise<SendResult> {
     const result = await this.bridge.send("send_reaction", { to, messageId, emoji });
     return { messageId: result.messageId as string };
+  }
+
+  async downloadMedia(mediaRef: string, path?: string, mimetype?: string): Promise<DownloadResult> {
+    const ext = MIME_EXTENSIONS[mimetype ?? ""] ?? mimeToExt(mimetype);
+    const destPath = resolve(path ?? `${this.downloadDir}/${randomUUID()}${ext}`);
+    const result = await this.bridge.send("download_media", { mediaRef, path: destPath });
+    return { path: result.path as string, size: result.size as number };
   }
 
   async getGroupInfo(jid: JID): Promise<GroupInfo> {

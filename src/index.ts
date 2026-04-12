@@ -12,6 +12,7 @@ export type {
   ConnectedEvent,
   ContactMessage,
   DisconnectedEvent,
+  DownloadResult,
   EventData,
   // Events
   EventType,

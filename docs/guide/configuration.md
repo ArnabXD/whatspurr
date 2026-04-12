@@ -12,6 +12,7 @@ const wa = new WhatsApp({
   binaryVersion: "v0.1.0",
   autoPresence: true,
   subscribeOutgoing: false,
+  downloadDir: "./downloads",
 });
 ```
 
@@ -27,6 +28,7 @@ const wa = new WhatsApp({
 | `binaryVersion` | `string` | `"latest"` | Pin a specific release version |
 | `autoPresence` | `boolean` | `true` | Send "available" presence on connect |
 | `subscribeOutgoing` | `boolean` | `false` | Receive outgoing messages (sent by us) in event updates |
+| `downloadDir` | `string` | `"./downloads"` | Directory for downloaded media files |
 
 ## Binary Management
 

@@ -20,6 +20,8 @@ export interface WhatsAppConfig {
   binaryRepo?: string;
   /** Version tag to download. Default: "latest" */
   binaryVersion?: string;
+  /** Directory for downloaded media files. Default: "./downloads" */
+  downloadDir?: string;
 }
 
 // ── Messages ─────────────────────────────────────────────────────────────────
@@ -243,6 +245,13 @@ export type MiddlewareFn<C> = (ctx: C, next: NextFn) => unknown | Promise<unknow
 // ── API result types ─────────────────────────────────────────────────────────
 export interface SendResult {
   messageId: string;
+}
+
+export interface DownloadResult {
+  /** Absolute path to the downloaded file */
+  path: string;
+  /** File size in bytes */
+  size: number;
 }
 
 export interface QuoteOptions {

@@ -35,6 +35,45 @@ interface MediaSendOptions {
 All media methods come in `reply` and `send` variants — see [Messaging](/guide/messaging) for the difference.
 :::
 
+## Downloading Media
+
+When you receive a media message, use `ctx.downloadMedia()` to download and decrypt it to disk:
+
+```ts
+wa.on("message:image", async (ctx) => {
+  // Download to the configured downloadDir (default: ./downloads)
+  const { path, size } = await ctx.downloadMedia();
+  console.log(`Saved ${size} bytes to ${path}`);
+
+  // Or specify an explicit path
+  const result = await ctx.downloadMedia("/tmp/photo.jpg");
+});
+```
+
+### Download Directory
+
+Configure where media files are saved by default:
+
+```ts
+const wa = new WhatsApp({
+  downloadDir: "./media", // default: "./downloads"
+});
+```
+
+When no explicit path is given, files are saved as `<downloadDir>/<uuid>.<ext>` with the extension inferred from the MIME type.
+
+### Download via API
+
+Download using a media reference directly:
+
+```ts
+// Default path (downloadDir/<uuid>.<ext>)
+const result = await wa.api.downloadMedia(mediaRef);
+
+// Explicit path
+const result2 = await wa.api.downloadMedia(mediaRef, "/tmp/file.pdf");
+```
+
 ## Sending via API
 
 For sending to specific JIDs (not as a reply):

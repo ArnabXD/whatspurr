@@ -11,7 +11,7 @@ export class WhatsApp extends Composer<Context> {
   constructor(config: WhatsAppConfig = {}) {
     super();
     this.bridge = new Bridge(config);
-    this.api = new Api(this.bridge);
+    this.api = new Api(this.bridge, config.downloadDir);
   }
 
   /** Start the WhatsApp client (spawns Go bridge, connects WS) */

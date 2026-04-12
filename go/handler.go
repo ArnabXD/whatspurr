@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 )
 
 func (s *Session) connectWhatsmeow() {
@@ -180,20 +182,20 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["type"] = "image"
 		base["caption"] = im.GetCaption()
 		base["mimetype"] = im.GetMimetype()
-		base["mediaRef"] = encodeMediaRef(v)
+		base["mediaRef"] = encodeMediaRef("image", im)
 
 	case msg.GetVideoMessage() != nil:
 		vm := msg.GetVideoMessage()
 		base["type"] = "video"
 		base["caption"] = vm.GetCaption()
 		base["mimetype"] = vm.GetMimetype()
-		base["mediaRef"] = encodeMediaRef(v)
+		base["mediaRef"] = encodeMediaRef("video", vm)
 
 	case msg.GetAudioMessage() != nil:
 		am := msg.GetAudioMessage()
 		base["type"] = "audio"
 		base["mimetype"] = am.GetMimetype()
-		base["mediaRef"] = encodeMediaRef(v)
+		base["mediaRef"] = encodeMediaRef("audio", am)
 
 	case msg.GetDocumentMessage() != nil:
 		dm := msg.GetDocumentMessage()
@@ -201,13 +203,13 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["caption"] = dm.GetCaption()
 		base["mimetype"] = dm.GetMimetype()
 		base["filename"] = dm.GetFileName()
-		base["mediaRef"] = encodeMediaRef(v)
+		base["mediaRef"] = encodeMediaRef("document", dm)
 
 	case msg.GetStickerMessage() != nil:
 		sm := msg.GetStickerMessage()
 		base["type"] = "sticker"
 		base["mimetype"] = sm.GetMimetype()
-		base["mediaRef"] = encodeMediaRef(v)
+		base["mediaRef"] = encodeMediaRef("sticker", sm)
 
 	case msg.GetContactMessage() != nil:
 		cm := msg.GetContactMessage()
@@ -230,9 +232,14 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 	s.sendEvent("message", base)
 }
 
-// encodeMediaRef creates an opaque reference string for media download.
-// Stores chat/sender/id — the download_media command will need to be
-// reworked to include encryption keys for actual downloads.
-func encodeMediaRef(v *events.Message) string {
-	return fmt.Sprintf("%s/%s/%s", v.Info.Chat.String(), v.Info.Sender.String(), v.Info.ID)
+// encodeMediaRef serializes a media protobuf message into an opaque
+// "type:base64" string that contains all fields needed for download
+// (URL, encryption keys, hashes, etc.).
+func encodeMediaRef(mediaType string, msg proto.Message) string {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		bridgeLog.Warnf("Failed to marshal media ref: %v", err)
+		return ""
+	}
+	return fmt.Sprintf("%s:%s", mediaType, base64.StdEncoding.EncodeToString(data))
 }
