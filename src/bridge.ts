@@ -1,16 +1,11 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { randomUUID, randomBytes } from "node:crypto";
-import { platform, arch } from "node:os";
-import { join, dirname } from "node:path";
-import { existsSync, mkdirSync, chmodSync } from "node:fs";
+import { type ChildProcess, spawn } from "node:child_process";
+import { randomBytes, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
-import type {
-  Command,
-  CommandResponse,
-  EventMessage,
-  WireMessage,
-  WhatsAppConfig,
-} from "./types.ts";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import { arch, platform } from "node:os";
+import { dirname, join } from "node:path";
+import pkg from "../package.json";
+import type { Command, CommandResponse, EventMessage, WhatsAppConfig, WireMessage } from "./types.ts";
 
 const DEFAULT_SESSION_DIR = "./session";
 const DEFAULT_BINARY_REPO = "ArnabXD/whatspurr";
@@ -41,10 +36,7 @@ function findBinary(configPath?: string): string | null {
   }
 
   const { ext } = getPlatformKey();
-  const candidates = [
-    join(import.meta.dirname ?? ".", "..", "bin", `bridge${ext}`),
-    join("bin", `bridge${ext}`),
-  ];
+  const candidates = [join(import.meta.dirname ?? ".", "..", "bin", `bridge${ext}`), join("bin", `bridge${ext}`)];
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
@@ -55,9 +47,10 @@ async function downloadBinary(repo: string, version: string): Promise<string> {
   const { goos, goarch, ext } = getPlatformKey();
   const assetName = `bridge-${goos}-${goarch}${ext}`;
 
-  const baseUrl = version === "latest"
-    ? `https://github.com/${repo}/releases/latest/download/${assetName}`
-    : `https://github.com/${repo}/releases/download/${version}/${assetName}`;
+  const baseUrl =
+    version === "latest"
+      ? `https://github.com/${repo}/releases/latest/download/${assetName}`
+      : `https://github.com/${repo}/releases/download/${version}/${assetName}`;
 
   const dest = getBinaryPath();
   const destDir = dirname(dest);
@@ -72,13 +65,13 @@ async function downloadBinary(repo: string, version: string): Promise<string> {
   if (!resp.ok) {
     throw new Error(
       `Failed to download binary: ${resp.status} ${resp.statusText}\n` +
-      `  URL: ${baseUrl}\n` +
-      `  Try building locally: bun run scripts/build-go.ts`
+        `  URL: ${baseUrl}\n` +
+        `  Try building locally: bun run scripts/build-go.ts`,
     );
   }
 
   const buffer = await resp.arrayBuffer();
-  const tmpDest = dest + ".tmp";
+  const tmpDest = `${dest}.tmp`;
   const fs = await import("node:fs/promises");
   await fs.writeFile(tmpDest, Buffer.from(buffer));
   await fs.rename(tmpDest, dest);
@@ -94,10 +87,13 @@ async function downloadBinary(repo: string, version: string): Promise<string> {
 export class Bridge extends EventEmitter {
   private process: ChildProcess | null = null;
   private ws: WebSocket | null = null;
-  private pending = new Map<string, {
-    resolve: (v: Record<string, unknown>) => void;
-    reject: (e: Error) => void;
-  }>();
+  private pending = new Map<
+    string,
+    {
+      resolve: (v: Record<string, unknown>) => void;
+      reject: (e: Error) => void;
+    }
+  >();
   private listenAddr: string | null = null;
   private authToken: string;
   private config: WhatsAppConfig;
@@ -117,7 +113,7 @@ export class Bridge extends EventEmitter {
     let binaryPath = findBinary(this.config.binaryPath);
     if (!binaryPath) {
       const repo = this.config.binaryRepo ?? DEFAULT_BINARY_REPO;
-      const version = this.config.binaryVersion ?? "latest";
+      const version = this.config.binaryVersion ?? `v${pkg.version}`;
       binaryPath = await downloadBinary(repo, version);
     }
     const sessionDir = this.config.sessionDir ?? DEFAULT_SESSION_DIR;
@@ -129,10 +125,14 @@ export class Bridge extends EventEmitter {
     const subscribeOutgoing = this.config.subscribeOutgoing === true; // default false
 
     const args = [
-      "--token", this.authToken,
-      "--session-dir", sessionDir,
-      "--db-name", dbName,
-      "--log-level", logLevel,
+      "--token",
+      this.authToken,
+      "--session-dir",
+      sessionDir,
+      "--db-name",
+      dbName,
+      "--log-level",
+      logLevel,
       ...(autoPresence ? ["--auto-presence"] : []),
       ...(subscribeOutgoing ? ["--subscribe-outgoing"] : []),
     ];
@@ -243,7 +243,9 @@ export class Bridge extends EventEmitter {
     // Command response
     const resp = msg as CommandResponse;
     if (resp.id && this.pending.has(resp.id)) {
-      const { resolve, reject } = this.pending.get(resp.id)!;
+      const pending = this.pending.get(resp.id);
+      if (!pending) return;
+      const { resolve, reject } = pending;
       this.pending.delete(resp.id);
       if (resp.error) {
         reject(new Error(`[${resp.error.code}] ${resp.error.message}`));
@@ -269,10 +271,16 @@ export class Bridge extends EventEmitter {
       }, COMMAND_TIMEOUT_MS);
 
       this.pending.set(id, {
-        resolve: (v) => { clearTimeout(timer); resolve(v); },
-        reject: (e) => { clearTimeout(timer); reject(e); },
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
       });
-      this.ws!.send(JSON.stringify(cmd));
+      this.ws?.send(JSON.stringify(cmd));
     });
   }
 
