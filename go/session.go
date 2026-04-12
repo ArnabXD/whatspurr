@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"go.mau.fi/whatsmeow"
 )
 
 const (
@@ -14,6 +15,8 @@ const (
 	maxConcurrentCommands = 64
 	// Read deadline: if no message received within this duration, close
 	wsReadTimeout = 5 * time.Minute
+	// Write deadline: if a write takes longer than this, drop it
+	wsWriteTimeout = 30 * time.Second
 	// Max incoming WS message size: 100 MB document * 4/3 base64 overhead + JSON envelope
 	wsReadLimit = 140 * 1024 * 1024
 )
@@ -47,11 +50,10 @@ type Event struct {
 
 // Session manages a single WebSocket connection and the whatsmeow client.
 type Session struct {
-	client    interface{} // *whatsmeow.Client — typed in main.go
-	conn      *websocket.Conn
-	mu        sync.Mutex
-	connected bool
-	handlers  map[string]commandHandler
+	client   *whatsmeow.Client
+	conn     *websocket.Conn
+	mu       sync.Mutex
+	handlers map[string]commandHandler
 }
 
 // serveConnected runs the read pump for an already-accepted connection.
@@ -60,7 +62,6 @@ func (s *Session) serveConnected(conn *websocket.Conn) {
 	defer func() {
 		s.mu.Lock()
 		s.conn = nil
-		s.connected = false
 		s.mu.Unlock()
 		conn.Close(websocket.StatusNormalClosure, "")
 	}()
@@ -105,10 +106,10 @@ func (s *Session) serveConnected(conn *websocket.Conn) {
 	}
 }
 
-func (s *Session) sendResponse(resp Response) {
-	data, err := json.Marshal(resp)
+func (s *Session) writeJSON(v interface{}) {
+	data, err := json.Marshal(v)
 	if err != nil {
-		bridgeLog.Errorf("Failed to marshal response: %v", err)
+		bridgeLog.Errorf("Failed to marshal: %v", err)
 		return
 	}
 
@@ -117,30 +118,21 @@ func (s *Session) sendResponse(resp Response) {
 	if s.conn == nil {
 		return
 	}
-	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
-		bridgeLog.Warnf("Failed to write response: %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), wsWriteTimeout)
+	defer cancel()
+	if err := s.conn.Write(ctx, websocket.MessageText, data); err != nil {
+		bridgeLog.Warnf("Failed to write: %v", err)
 	}
 }
 
+func (s *Session) sendResponse(resp Response) {
+	s.writeJSON(resp)
+}
+
 func (s *Session) sendEvent(eventName string, eventData interface{}) {
-	ev := Event{
+	s.writeJSON(Event{
 		Type:      "event",
 		EventName: eventName,
 		Data:      eventData,
-	}
-
-	data, err := json.Marshal(ev)
-	if err != nil {
-		bridgeLog.Errorf("Failed to marshal event: %v", err)
-		return
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.conn == nil {
-		return
-	}
-	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
-		bridgeLog.Warnf("Failed to write event: %v", err)
-	}
+	})
 }

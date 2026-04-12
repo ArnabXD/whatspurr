@@ -43,10 +43,6 @@ func (s *Session) handleCommand(cmd Command) {
 	s.sendResponse(resp)
 }
 
-func (s *Session) getClient() *whatsmeow.Client {
-	return s.client.(*whatsmeow.Client)
-}
-
 func (s *Session) parseJID(params map[string]interface{}, key string) (types.JID, error) {
 	raw, ok := params[key].(string)
 	if !ok || raw == "" {
@@ -96,7 +92,7 @@ func (s *Session) cmdSendMessage(cmd Command) Response {
 		}
 	}
 
-	resp, err := s.getClient().SendMessage(context.Background(), to, msg)
+	resp, err := s.client.SendMessage(context.Background(), to, msg)
 	if err != nil {
 		bridgeLog.Warnf("send_message error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
@@ -149,7 +145,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	filename, _ := cmd.Params["filename"].(string)
 	contextInfo := s.buildContextInfo(cmd.Params)
 
-	client := s.getClient()
+	client := s.client
 	uploaded, err := client.Upload(context.Background(), data, mediaUploadType[mediaType])
 	if err != nil {
 		bridgeLog.Warnf("upload error: %v", err)
@@ -242,7 +238,7 @@ func (s *Session) cmdSendReaction(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'messageId' parameter"}}
 	}
 
-	resp, err := s.getClient().SendMessage(context.Background(), to, &waE2E.Message{
+	resp, err := s.client.SendMessage(context.Background(), to, &waE2E.Message{
 		ReactionMessage: &waE2E.ReactionMessage{
 			Key: &waCommon.MessageKey{
 				RemoteJID: proto.String(to.String()),
@@ -267,7 +263,7 @@ func (s *Session) cmdGetGroupInfo(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
 	}
 
-	info, err := s.getClient().GetGroupInfo(context.Background(), jid)
+	info, err := s.client.GetGroupInfo(context.Background(), jid)
 	if err != nil {
 		bridgeLog.Warnf("get_group_info error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1006, Message: "get group info failed"}}
@@ -320,7 +316,7 @@ func (s *Session) cmdSendChatPresence(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "media must be 'text' or 'audio'"}}
 	}
 
-	err = s.getClient().SendChatPresence(context.Background(), to, presence, mediaPresence)
+	err = s.client.SendChatPresence(context.Background(), to, presence, mediaPresence)
 	if err != nil {
 		bridgeLog.Warnf("send_chat_presence error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to send chat presence"}}
@@ -354,7 +350,7 @@ func (s *Session) cmdMarkRead(cmd Command) Response {
 		ids[i] = types.MessageID(id)
 	}
 
-	err = s.getClient().MarkRead(context.Background(), ids, time.Now(), chat, sender)
+	err = s.client.MarkRead(context.Background(), ids, time.Now(), chat, sender)
 	if err != nil {
 		bridgeLog.Warnf("mark_read error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1008, Message: "failed to mark as read"}}
@@ -366,22 +362,19 @@ func (s *Session) cmdMarkRead(cmd Command) Response {
 func (s *Session) cmdSetPresence(cmd Command) Response {
 	presenceType, _ := cmd.Params["type"].(string)
 
-	client := s.getClient()
+	var presence types.Presence
 	switch presenceType {
 	case "available":
-		err := client.SendPresence(context.Background(), types.PresenceAvailable)
-		if err != nil {
-			bridgeLog.Warnf("set_presence error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
-		}
+		presence = types.PresenceAvailable
 	case "unavailable":
-		err := client.SendPresence(context.Background(), types.PresenceUnavailable)
-		if err != nil {
-			bridgeLog.Warnf("set_presence error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
-		}
+		presence = types.PresenceUnavailable
 	default:
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "type must be 'available' or 'unavailable'"}}
+	}
+
+	if err := s.client.SendPresence(context.Background(), presence); err != nil {
+		bridgeLog.Warnf("set_presence error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
 	}
 
 	return Response{Result: map[string]interface{}{"ok": true}}

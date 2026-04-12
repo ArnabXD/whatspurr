@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 )
 
 func (s *Session) connectWhatsmeow() {
-	client := s.client.(*whatsmeow.Client)
+	client := s.client
 
 	if client.Store.ID == nil {
 		// No session yet — need QR auth
@@ -56,14 +55,13 @@ func (s *Session) connectWhatsmeow() {
 func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Connected:
-		client := s.client.(*whatsmeow.Client)
 		jid := ""
-		if client.Store.ID != nil {
-			jid = client.Store.ID.String()
+		if s.client.Store.ID != nil {
+			jid = s.client.Store.ID.String()
 		}
 		// Auto-send presence so we receive read receipts and presence updates
 		if autoPresence {
-			if err := client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
+			if err := s.client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
 				bridgeLog.Warnf("Failed to send presence: %v", err)
 			}
 		}
@@ -88,20 +86,17 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 			receiptType = "delivered"
 		}
 
-		msgIds := make([]string, len(v.MessageIDs))
-		copy(msgIds, v.MessageIDs)
-
 		s.sendEvent("receipt", map[string]interface{}{
 			"from":       v.MessageSource.Sender.String(),
 			"chat":       v.MessageSource.Chat.String(),
-			"messageIds": msgIds,
+			"messageIds": v.MessageIDs,
 			"type":       receiptType,
 			"timestamp":  v.Timestamp.Unix(),
 		})
 
 	case *events.Presence:
 		presenceType := "unavailable"
-		if v.Unavailable == false {
+		if !v.Unavailable {
 			presenceType = "available"
 		}
 		s.sendEvent("presence", map[string]interface{}{
@@ -236,10 +231,8 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 }
 
 // encodeMediaRef creates an opaque reference string for media download.
-// For now we store the message ID — the download_media command will
-// look it up from whatsmeow's message store.
+// Stores chat/sender/id — the download_media command will need to be
+// reworked to include encryption keys for actual downloads.
 func encodeMediaRef(v *events.Message) string {
-	// Store enough info to reconstruct the download later.
-	// We JSON-encode the essential fields.
 	return fmt.Sprintf("%s/%s/%s", v.Info.Chat.String(), v.Info.Sender.String(), v.Info.ID)
 }

@@ -107,7 +107,7 @@ func main() {
 
 		// Single-client mode: acquire lock for atomic check-and-accept
 		session.mu.Lock()
-		if session.connected {
+		if session.conn != nil {
 			session.mu.Unlock()
 			http.Error(w, "already connected", http.StatusConflict)
 			return
@@ -121,7 +121,6 @@ func main() {
 		}
 
 		session.conn = conn
-		session.connected = true
 		session.mu.Unlock()
 
 		session.serveConnected(conn)
