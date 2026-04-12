@@ -14,6 +14,8 @@ import type {
 
 const DEFAULT_SESSION_DIR = "./session";
 const STARTUP_TIMEOUT_MS = 10_000;
+const COMMAND_TIMEOUT_MS = 30_000;
+const LISTEN_ADDR_RE = /^127\.0\.0\.1:\d+$/;
 
 function findBinary(configPath?: string): string {
   if (configPath) return configPath;
@@ -101,7 +103,13 @@ export class Bridge extends EventEmitter {
       const onData = (chunk: Buffer) => {
         const line = chunk.toString().trim();
         if (line.startsWith("ready ")) {
-          this.listenAddr = line.slice(6); // "ready 127.0.0.1:12345"
+          const addr = line.slice(6);
+          if (!LISTEN_ADDR_RE.test(addr)) {
+            clearTimeout(timeout);
+            reject(new Error(`Invalid listen address from bridge: ${addr.slice(0, 40)}`));
+            return;
+          }
+          this.listenAddr = addr;
           clearTimeout(timeout);
           this.process?.stdout?.off("data", onData);
           resolve();
@@ -157,7 +165,7 @@ export class Bridge extends EventEmitter {
     try {
       msg = JSON.parse(raw);
     } catch {
-      this.emit("error", new Error(`Invalid JSON from bridge: ${raw}`));
+      this.emit("error", new Error(`Invalid JSON from bridge: ${raw.slice(0, 200)}`));
       return;
     }
 
@@ -191,7 +199,15 @@ export class Bridge extends EventEmitter {
     const cmd: Command = { id, method, params };
 
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Command '${method}' timed out after ${COMMAND_TIMEOUT_MS}ms`));
+      }, COMMAND_TIMEOUT_MS);
+
+      this.pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
+      });
       this.ws!.send(JSON.stringify(cmd));
     });
   }

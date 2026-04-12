@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
@@ -18,7 +17,7 @@ func (s *Session) connectWhatsmeow() {
 		qrChan, _ := client.GetQRChannel(context.Background())
 		err := client.Connect()
 		if err != nil {
-			log.Printf("Connect error: %v", err)
+			bridgeLog.Errorf("Connect error: %v", err)
 			s.sendEvent("disconnected", map[string]interface{}{
 				"reason": fmt.Sprintf("connect failed: %v", err),
 			})
@@ -46,7 +45,7 @@ func (s *Session) connectWhatsmeow() {
 		// Already have session, just connect
 		err := client.Connect()
 		if err != nil {
-			log.Printf("Connect error: %v", err)
+			bridgeLog.Errorf("Connect error: %v", err)
 			s.sendEvent("disconnected", map[string]interface{}{
 				"reason": fmt.Sprintf("connect failed: %v", err),
 			})
@@ -65,7 +64,7 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 		// Auto-send presence so we receive read receipts and presence updates
 		if autoPresence {
 			if err := client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
-				log.Printf("Failed to send presence: %v", err)
+				bridgeLog.Warnf("Failed to send presence: %v", err)
 			}
 		}
 		s.sendEvent("connected", map[string]interface{}{

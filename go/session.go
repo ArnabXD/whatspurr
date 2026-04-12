@@ -3,10 +3,19 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"sync"
+	"time"
 
 	"github.com/coder/websocket"
+)
+
+const (
+	// Max concurrent command handlers
+	maxConcurrentCommands = 64
+	// Read deadline: if no message received within this duration, close
+	wsReadTimeout = 5 * time.Minute
+	// Max incoming WS message size: 100 MB document * 4/3 base64 overhead + JSON envelope
+	wsReadLimit = 140 * 1024 * 1024
 )
 
 // Command is a request from TS to Go.
@@ -44,18 +53,9 @@ type Session struct {
 	connected bool
 }
 
-func (s *Session) isConnected() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.connected
-}
-
-func (s *Session) serve(conn *websocket.Conn) {
-	s.mu.Lock()
-	s.conn = conn
-	s.connected = true
-	s.mu.Unlock()
-
+// serveConnected runs the read pump for an already-accepted connection.
+// The caller (HTTP handler) has already set s.conn and s.connected under the lock.
+func (s *Session) serveConnected(conn *websocket.Conn) {
 	defer func() {
 		s.mu.Lock()
 		s.conn = nil
@@ -64,20 +64,25 @@ func (s *Session) serve(conn *websocket.Conn) {
 		conn.Close(websocket.StatusNormalClosure, "")
 	}()
 
-	ctx := context.Background()
+	conn.SetReadLimit(wsReadLimit)
+
+	// Semaphore to bound concurrent command handlers
+	sem := make(chan struct{}, maxConcurrentCommands)
 
 	// Connect whatsmeow when TS connects
 	s.connectWhatsmeow()
 
-	// Read pump
+	// Read pump with deadline
 	for {
+		ctx, cancel := context.WithTimeout(context.Background(), wsReadTimeout)
 		_, data, err := conn.Read(ctx)
+		cancel()
 		if err != nil {
 			status := websocket.CloseStatus(err)
 			if status == websocket.StatusNormalClosure || status == websocket.StatusGoingAway {
-				log.Println("WS connection closed")
+				bridgeLog.Infof("WS connection closed")
 			} else {
-				log.Printf("WS read error: %v", err)
+				bridgeLog.Warnf("WS read error: %v", err)
 			}
 			return
 		}
@@ -90,8 +95,12 @@ func (s *Session) serve(conn *websocket.Conn) {
 			continue
 		}
 
-		// Handle command in goroutine to not block reads
-		go s.handleCommand(cmd)
+		// Acquire semaphore slot (bounded concurrency)
+		sem <- struct{}{}
+		go func() {
+			defer func() { <-sem }()
+			s.handleCommand(cmd)
+		}()
 	}
 }
 
@@ -105,12 +114,12 @@ func (s *Session) sendResponse(resp Response) {
 
 	data, err := json.Marshal(resp)
 	if err != nil {
-		log.Printf("Failed to marshal response: %v", err)
+		bridgeLog.Errorf("Failed to marshal response: %v", err)
 		return
 	}
 
 	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
-		log.Printf("Failed to write response: %v", err)
+		bridgeLog.Warnf("Failed to write response: %v", err)
 	}
 }
 
@@ -130,11 +139,11 @@ func (s *Session) sendEvent(eventName string, eventData interface{}) {
 
 	data, err := json.Marshal(ev)
 	if err != nil {
-		log.Printf("Failed to marshal event: %v", err)
+		bridgeLog.Errorf("Failed to marshal event: %v", err)
 		return
 	}
 
 	if err := s.conn.Write(context.Background(), websocket.MessageText, data); err != nil {
-		log.Printf("Failed to write event: %v", err)
+		bridgeLog.Warnf("Failed to write event: %v", err)
 	}
 }

@@ -72,7 +72,8 @@ func (s *Session) cmdSendMessage(cmd Command) Response {
 		Conversation: proto.String(text),
 	})
 	if err != nil {
-		return Response{Error: &ErrorInfo{Code: 1004, Message: fmt.Sprintf("send failed: %v", err)}}
+		bridgeLog.Warnf("send_message error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
 	}
 
 	return Response{Result: map[string]interface{}{
@@ -91,6 +92,21 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'data' parameter"}}
 	}
 
+	// WhatsApp per-type file size limits
+	var maxBytes int
+	switch mediaType {
+	case "image", "video", "audio":
+		maxBytes = 16 * 1024 * 1024 // 16 MB
+	case "document":
+		maxBytes = 100 * 1024 * 1024 // 100 MB
+	default:
+		maxBytes = 16 * 1024 * 1024
+	}
+
+	if base64.StdEncoding.DecodedLen(len(dataB64)) > maxBytes {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("%s exceeds %d MB limit", mediaType, maxBytes/1024/1024)}}
+	}
+
 	data, err := base64.StdEncoding.DecodeString(dataB64)
 	if err != nil {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "invalid base64 data"}}
@@ -107,7 +123,8 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	case "image":
 		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaImage)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1005, Message: fmt.Sprintf("upload failed: %v", err)}}
+			bridgeLog.Warnf("upload error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
 		}
 		msg = &waE2E.Message{
 			ImageMessage: &waE2E.ImageMessage{
@@ -124,7 +141,8 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	case "video":
 		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaVideo)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1005, Message: fmt.Sprintf("upload failed: %v", err)}}
+			bridgeLog.Warnf("upload error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
 		}
 		msg = &waE2E.Message{
 			VideoMessage: &waE2E.VideoMessage{
@@ -141,7 +159,8 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	case "audio":
 		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaAudio)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1005, Message: fmt.Sprintf("upload failed: %v", err)}}
+			bridgeLog.Warnf("upload error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
 		}
 		msg = &waE2E.Message{
 			AudioMessage: &waE2E.AudioMessage{
@@ -157,7 +176,8 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	case "document":
 		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaDocument)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1005, Message: fmt.Sprintf("upload failed: %v", err)}}
+			bridgeLog.Warnf("upload error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
 		}
 		msg = &waE2E.Message{
 			DocumentMessage: &waE2E.DocumentMessage{
@@ -176,7 +196,8 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 
 	resp, err := client.SendMessage(context.Background(), to, msg)
 	if err != nil {
-		return Response{Error: &ErrorInfo{Code: 1004, Message: fmt.Sprintf("send failed: %v", err)}}
+		bridgeLog.Warnf("send_media error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
 	}
 
 	return Response{Result: map[string]interface{}{
@@ -207,7 +228,8 @@ func (s *Session) cmdSendReaction(cmd Command) Response {
 		},
 	})
 	if err != nil {
-		return Response{Error: &ErrorInfo{Code: 1004, Message: fmt.Sprintf("reaction failed: %v", err)}}
+		bridgeLog.Warnf("send_reaction error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1004, Message: "reaction failed"}}
 	}
 
 	return Response{Result: map[string]interface{}{
@@ -223,7 +245,8 @@ func (s *Session) cmdGetGroupInfo(cmd Command) Response {
 
 	info, err := s.getClient().GetGroupInfo(context.Background(), jid)
 	if err != nil {
-		return Response{Error: &ErrorInfo{Code: 1006, Message: fmt.Sprintf("get group info failed: %v", err)}}
+		bridgeLog.Warnf("get_group_info error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1006, Message: "get group info failed"}}
 	}
 
 	participants := make([]map[string]interface{}, len(info.Participants))
@@ -252,12 +275,14 @@ func (s *Session) cmdSetPresence(cmd Command) Response {
 	case "available":
 		err := client.SendPresence(context.Background(), types.PresenceAvailable)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1007, Message: err.Error()}}
+			bridgeLog.Warnf("set_presence error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
 		}
 	case "unavailable":
 		err := client.SendPresence(context.Background(), types.PresenceUnavailable)
 		if err != nil {
-			return Response{Error: &ErrorInfo{Code: 1007, Message: err.Error()}}
+			bridgeLog.Warnf("set_presence error: %v", err)
+			return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
 		}
 	default:
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "type must be 'available' or 'unavailable'"}}

@@ -9,16 +9,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
-	_ "modernc.org/sqlite"
 	"github.com/coder/websocket"
+	_ "modernc.org/sqlite"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
+
+// bridgeLog is the level-aware logger for all bridge code.
+// Initialized in main() after flag parsing.
+var bridgeLog waLog.Logger
 
 var (
 	authToken    string
@@ -40,13 +46,21 @@ func main() {
 		log.Fatal("--token flag is required")
 	}
 
+	// Init level-aware logger for bridge code
+	bridgeLog = waLog.Stdout("Bridge", logLevel, true)
+
+	// Validate dbName: must not contain path separators or traversal
+	if strings.ContainsAny(dbName, "/\\") || strings.Contains(dbName, "..") || dbName == "" {
+		log.Fatal("--db-name must be a plain filename (no path separators or '..')")
+	}
+
 	// Ensure session directory exists
 	if err := os.MkdirAll(sessionDir, 0700); err != nil {
 		log.Fatalf("Failed to create session dir: %v", err)
 	}
 
 	// Init SQLite store for whatsmeow auth
-	dbPath := fmt.Sprintf("file:%s/%s?_pragma=foreign_keys(1)", sessionDir, dbName)
+	dbPath := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)", filepath.Join(sessionDir, dbName))
 	dbLog := waLog.Stdout("Database", logLevel, true)
 	container, err := sqlstore.New(context.Background(), "sqlite", dbPath, dbLog)
 	if err != nil {
@@ -88,19 +102,26 @@ func main() {
 			return
 		}
 
-		// Single-client mode: reject if already connected
-		if session.isConnected() {
+		// Single-client mode: acquire lock for atomic check-and-accept
+		session.mu.Lock()
+		if session.connected {
+			session.mu.Unlock()
 			http.Error(w, "already connected", http.StatusConflict)
 			return
 		}
 
 		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
 		if err != nil {
-			log.Printf("WebSocket accept error: %v", err)
+			session.mu.Unlock()
+			bridgeLog.Errorf("WebSocket accept error: %v", err)
 			return
 		}
 
-		session.serve(conn)
+		session.conn = conn
+		session.connected = true
+		session.mu.Unlock()
+
+		session.serveConnected(conn)
 	})
 
 	server := &http.Server{Handler: mux}
@@ -120,7 +141,7 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	<-sigCh
 
-	log.Println("Shutting down...")
+	bridgeLog.Infof("Shutting down...")
 	client.Disconnect()
 	server.Shutdown(context.Background())
 }
