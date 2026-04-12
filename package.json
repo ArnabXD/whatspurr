@@ -1,6 +1,6 @@
 {
   "name": "@arnabxd/whatspurr",
-  "version": "0.1.0-beta-01",
+  "version": "0.1.0-beta-02",
   "description": "A grammY-style TypeScript library for WhatsApp, powered by whatsmeow (Go)",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,9 +17,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build src/*.ts --outdir dist --target node --format esm",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "build:go": "bun run scripts/build-go.ts",
     "release:go": "bun run scripts/release.ts",
     "typecheck": "tsc --noEmit",
