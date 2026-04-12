@@ -1,0 +1,224 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID, randomBytes } from "node:crypto";
+import { platform } from "node:os";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import type {
+  Command,
+  CommandResponse,
+  EventMessage,
+  WireMessage,
+  WhatsAppConfig,
+} from "./types.ts";
+
+const DEFAULT_SESSION_DIR = "./session";
+const STARTUP_TIMEOUT_MS = 10_000;
+
+function findBinary(configPath?: string): string {
+  if (configPath) return configPath;
+
+  const ext = platform() === "win32" ? ".exe" : "";
+  const candidates = [
+    join(import.meta.dirname ?? ".", "..", "bin", `bridge${ext}`),
+    join("bin", `bridge${ext}`),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  throw new Error(
+    `Go bridge binary not found. Searched: ${candidates.join(", ")}. ` +
+      `Run "bun run scripts/build-go.ts" to compile it.`
+  );
+}
+
+export class Bridge extends EventEmitter {
+  private process: ChildProcess | null = null;
+  private ws: WebSocket | null = null;
+  private pending = new Map<string, {
+    resolve: (v: Record<string, unknown>) => void;
+    reject: (e: Error) => void;
+  }>();
+  private listenAddr: string | null = null;
+  private authToken: string;
+  private config: WhatsAppConfig;
+  private _ready = false;
+
+  constructor(config: WhatsAppConfig = {}) {
+    super();
+    this.config = config;
+    this.authToken = randomBytes(32).toString("hex");
+  }
+
+  get ready(): boolean {
+    return this._ready;
+  }
+
+  async start(): Promise<void> {
+    const binaryPath = findBinary(this.config.binaryPath);
+    const sessionDir = this.config.sessionDir ?? DEFAULT_SESSION_DIR;
+    const logLevel = this.config.logLevel ?? "info";
+
+    const dbName = this.config.dbName ?? "whatspurr.db";
+
+    const autoPresence = this.config.autoPresence !== false; // default true
+
+    const args = [
+      "--token", this.authToken,
+      "--session-dir", sessionDir,
+      "--db-name", dbName,
+      "--log-level", logLevel,
+      ...(autoPresence ? ["--auto-presence"] : []),
+    ];
+
+    this.process = spawn(binaryPath, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    this.process.on("exit", (code, signal) => {
+      this._ready = false;
+      this.emit("exit", { code, signal });
+    });
+
+    this.process.stderr?.on("data", (chunk: Buffer) => {
+      const line = chunk.toString().trim();
+      if (line) this.emit("log", line);
+    });
+
+    // Wait for Go to signal readiness and report listen address
+    await this.waitForReady();
+
+    // Connect WebSocket
+    await this.connectWs();
+  }
+
+  private waitForReady(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Go bridge startup timed out"));
+      }, STARTUP_TIMEOUT_MS);
+
+      const onData = (chunk: Buffer) => {
+        const line = chunk.toString().trim();
+        if (line.startsWith("ready ")) {
+          this.listenAddr = line.slice(6); // "ready 127.0.0.1:12345"
+          clearTimeout(timeout);
+          this.process?.stdout?.off("data", onData);
+          resolve();
+        }
+      };
+
+      this.process?.stdout?.on("data", onData);
+
+      this.process?.on("error", (err) => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to start Go bridge: ${err.message}`));
+      });
+
+      this.process?.on("exit", (code) => {
+        clearTimeout(timeout);
+        if (!this._ready) {
+          reject(new Error(`Go bridge exited during startup with code ${code}`));
+        }
+      });
+    });
+  }
+
+  private connectWs(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const url = `ws://${this.listenAddr}/?token=${this.authToken}`;
+      this.ws = new WebSocket(url);
+
+      this.ws.onopen = () => {
+        this._ready = true;
+        resolve();
+      };
+
+      this.ws.onerror = (ev) => {
+        if (!this._ready) {
+          reject(new Error(`WebSocket connection failed`));
+        }
+        this.emit("error", ev);
+      };
+
+      this.ws.onclose = () => {
+        this._ready = false;
+        this.emit("ws_close");
+      };
+
+      this.ws.onmessage = (ev) => {
+        this.handleMessage(ev.data as string);
+      };
+    });
+  }
+
+  private handleMessage(raw: string): void {
+    let msg: WireMessage;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      this.emit("error", new Error(`Invalid JSON from bridge: ${raw}`));
+      return;
+    }
+
+    // Event push from Go
+    if ("type" in msg && msg.type === "event") {
+      const event = msg as EventMessage;
+      this.emit("event", { event: event.event, data: event.data });
+      return;
+    }
+
+    // Command response
+    const resp = msg as CommandResponse;
+    if (resp.id && this.pending.has(resp.id)) {
+      const { resolve, reject } = this.pending.get(resp.id)!;
+      this.pending.delete(resp.id);
+      if (resp.error) {
+        reject(new Error(`[${resp.error.code}] ${resp.error.message}`));
+      } else {
+        resolve(resp.result ?? {});
+      }
+    }
+  }
+
+  /** Send a command to the Go bridge and await the response. */
+  async send(method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+    if (!this.ws || !this._ready) {
+      throw new Error("Bridge is not connected");
+    }
+
+    const id = randomUUID();
+    const cmd: Command = { id, method, params };
+
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.ws!.send(JSON.stringify(cmd));
+    });
+  }
+
+  async stop(): Promise<void> {
+    this._ready = false;
+
+    // Reject all pending commands
+    for (const [, { reject }] of this.pending) {
+      reject(new Error("Bridge is shutting down"));
+    }
+    this.pending.clear();
+
+    // Close WebSocket
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+
+    // Kill Go process
+    if (this.process) {
+      this.process.kill("SIGTERM");
+      await new Promise<void>((resolve) => {
+        this.process?.on("exit", () => resolve());
+        setTimeout(resolve, 3000); // force resolve after 3s
+      });
+      this.process = null;
+    }
+  }
+}
