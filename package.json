@@ -1,6 +1,6 @@
 {
   "name": "@arnabxd/whatspurr",
-  "version": "0.1.0-rc-02",
+  "version": "0.1.0-rc-03",
   "description": "A grammY-style TypeScript library for WhatsApp, powered by whatsmeow (Go)",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,7 +13,6 @@
   },
   "files": [
     "dist",
-    "src",
     "README.md",
     "LICENSE"
   ],
@@ -31,9 +30,6 @@
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "uqr": "^0.1.3"
   },
   "keywords": ["whatsapp", "whatsmeow", "bot", "chatbot", "middleware"],
   "author": "ArnabXD",
