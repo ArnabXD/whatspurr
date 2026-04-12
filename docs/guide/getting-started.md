@@ -64,8 +64,8 @@ whatspurr runs a Go sidecar process that handles the WhatsApp Web protocol via [
 
 ```
 ┌──────────────┐   WebSocket (localhost)   ┌──────────────┐
-│  Your TS Bot │ ◄──────────────────────► │  Go Sidecar  │
-│              │    JSON commands/events    │  (whatsmeow) │
+│  Your TS Bot │ ◄──────────────────────►  │  Go Sidecar  │
+│              │    JSON commands/events   │  (whatsmeow) │
 └──────────────┘                           └──────────────┘
                                                   │
                                            WhatsApp Servers
