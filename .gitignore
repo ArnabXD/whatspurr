@@ -41,3 +41,7 @@ dist/
 
 # Session data
 session/
+
+# VitePress
+docs/.vitepress/dist
+docs/.vitepress/cache

@@ -26,11 +26,15 @@
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",
     "format": "biome format --write .",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "vitepress": "^1.6.4"
   },
   "peerDependencies": {
     "typescript": "^5"
