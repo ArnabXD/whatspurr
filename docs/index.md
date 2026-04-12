@@ -26,15 +26,15 @@ features:
   - icon: "\U0001F510"
     title: Powered by whatsmeow
     details: Battle-tested Go implementation of the WhatsApp Web protocol. No Puppeteer, no unofficial REST APIs.
-  - icon: "\U0001F4E6"
-    title: Zero Config
-    details: The Go bridge binary auto-downloads on first run. Install the package and start writing handlers.
   - icon: "\U0001F9E9"
     title: Fully Typed
     details: Context narrowing gives your handlers exact types. <code>wa.on("message:text")</code> guarantees <code>ctx.text</code> is a string.
   - icon: "\U0001F680"
     title: Bun & Node
     details: Works on Bun and Node.js 21+. No runtime-specific APIs in the library — use whichever you prefer.
+  - icon: "\U0001F465"
+    title: Multi-Account
+    details: Run multiple WhatsApp sessions from a single process. Connect on demand, disconnect to free resources, reconnect without re-scanning QR.
   - icon: "\U0001F527"
     title: Composable
     details: Split handlers into modules with Composer, scope error boundaries, nest middleware — scale from echo bot to production.

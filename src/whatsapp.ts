@@ -30,7 +30,7 @@ export class WhatsApp extends Composer<Context> {
       const config = configOrBridge ?? {};
       this.bridge = new Bridge(config);
       this.ownsBridge = true;
-      this.sessionName = "default";
+      this.sessionName = config.sessionName ?? "default";
       this.api = new Api(this.bridge, config.downloadDir, this.sessionName);
     }
   }

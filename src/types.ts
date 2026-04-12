@@ -4,6 +4,8 @@ export type JID = string;
 
 // ── Config ───────────────────────────────────────────────────────────────────
 export interface WhatsAppConfig {
+  /** Session name for identifying this device. Default: "default" */
+  sessionName?: string;
   /** Directory for session/auth data. Default: "./session" */
   sessionDir?: string;
   /** SQLite database filename. Default: "whatspurr.db" */

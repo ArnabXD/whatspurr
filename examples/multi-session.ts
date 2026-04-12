@@ -1,4 +1,4 @@
-import { WhatsAppManager } from "./src/index.ts";
+import { WhatsAppManager } from "../src/index.ts";
 import { renderUnicodeCompact } from "uqr";
 
 const mgr = new WhatsAppManager({
