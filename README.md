@@ -27,21 +27,18 @@ const wa = new WhatsApp({
 
 // QR code event — render for scanning
 wa.on("qr", (ctx) => {
-  const code = (ctx.eventData.data as { code: string }).code;
   console.log("\nScan this QR code in WhatsApp:\n");
-  console.log(renderUnicodeCompact(code));
+  console.log(renderUnicodeCompact(ctx.qr.code));
 });
 
 // Connected
 wa.on("connected", (ctx) => {
-  const jid = (ctx.eventData.data as { jid: string }).jid;
-  console.log(`Connected as ${jid}`);
+  console.log(`Connected as ${ctx.connected.jid}`);
 });
 
 // Disconnected
 wa.on("disconnected", (ctx) => {
-  const reason = (ctx.eventData.data as { reason: string }).reason;
-  console.log(`Disconnected: ${reason}`);
+  console.log(`Disconnected: ${ctx.disconnected.reason}`);
 });
 
 // Echo bot: reply to text messages

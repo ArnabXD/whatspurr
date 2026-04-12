@@ -152,6 +152,7 @@ graph LR
         C4["get_group_info {jid}"]
         C5["set_presence {type}"]
         C6["send_chat_presence {to, state, media}"]
+        C7["mark_read {chat, sender, messageIds}"]
     end
 
     subgraph "Go → TS (Events)"
