@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waCommon"
@@ -12,30 +13,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type commandHandler func(Command) Response
+
+func (s *Session) buildCommandHandlers() map[string]commandHandler {
+	return map[string]commandHandler{
+		"send_message":       s.cmdSendMessage,
+		"send_image":         func(cmd Command) Response { return s.cmdSendMedia(cmd, "image") },
+		"send_video":         func(cmd Command) Response { return s.cmdSendMedia(cmd, "video") },
+		"send_audio":         func(cmd Command) Response { return s.cmdSendMedia(cmd, "audio") },
+		"send_document":      func(cmd Command) Response { return s.cmdSendMedia(cmd, "document") },
+		"send_reaction":      s.cmdSendReaction,
+		"get_group_info":     s.cmdGetGroupInfo,
+		"send_chat_presence": s.cmdSendChatPresence,
+		"mark_read":          s.cmdMarkRead,
+		"set_presence":       s.cmdSetPresence,
+	}
+}
+
 func (s *Session) handleCommand(cmd Command) {
 	var resp Response
-	resp.ID = cmd.ID
 
-	switch cmd.Method {
-	case "send_message":
-		resp = s.cmdSendMessage(cmd)
-	case "send_image":
-		resp = s.cmdSendMedia(cmd, "image")
-	case "send_video":
-		resp = s.cmdSendMedia(cmd, "video")
-	case "send_audio":
-		resp = s.cmdSendMedia(cmd, "audio")
-	case "send_document":
-		resp = s.cmdSendMedia(cmd, "document")
-	case "send_reaction":
-		resp = s.cmdSendReaction(cmd)
-	case "get_group_info":
-		resp = s.cmdGetGroupInfo(cmd)
-	case "send_chat_presence":
-		resp = s.cmdSendChatPresence(cmd)
-	case "set_presence":
-		resp = s.cmdSetPresence(cmd)
-	default:
+	if handler, ok := s.handlers[cmd.Method]; ok {
+		resp = handler(cmd)
+	} else {
 		resp.Error = &ErrorInfo{Code: 1002, Message: fmt.Sprintf("unknown method: %s", cmd.Method)}
 	}
 
@@ -83,6 +83,20 @@ func (s *Session) cmdSendMessage(cmd Command) Response {
 	}}
 }
 
+var mediaUploadType = map[string]whatsmeow.MediaType{
+	"image":    whatsmeow.MediaImage,
+	"video":    whatsmeow.MediaVideo,
+	"audio":    whatsmeow.MediaAudio,
+	"document": whatsmeow.MediaDocument,
+}
+
+var mediaSizeLimit = map[string]int{
+	"image":    16 * 1024 * 1024,
+	"video":    16 * 1024 * 1024,
+	"audio":    16 * 1024 * 1024,
+	"document": 100 * 1024 * 1024,
+}
+
 func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	to, err := s.parseJID(cmd.Params, "to")
 	if err != nil {
@@ -94,17 +108,9 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'data' parameter"}}
 	}
 
-	// WhatsApp per-type file size limits
-	var maxBytes int
-	switch mediaType {
-	case "image", "video", "audio":
-		maxBytes = 16 * 1024 * 1024 // 16 MB
-	case "document":
-		maxBytes = 100 * 1024 * 1024 // 100 MB
-	default:
-		maxBytes = 16 * 1024 * 1024
-	}
+	maxBytes := mediaSizeLimit[mediaType]
 
+	// DecodedLen returns max possible size (may overestimate by a few bytes due to padding)
 	if base64.StdEncoding.DecodedLen(len(dataB64)) > maxBytes {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("%s exceeds %d MB limit", mediaType, maxBytes/1024/1024)}}
 	}
@@ -119,15 +125,17 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	filename, _ := cmd.Params["filename"].(string)
 
 	client := s.getClient()
+	uploaded, err := client.Upload(context.Background(), data, mediaUploadType[mediaType])
+	if err != nil {
+		bridgeLog.Warnf("upload error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
+	}
+
+	fileLen := proto.Uint64(uint64(len(data)))
 	var msg *waE2E.Message
 
 	switch mediaType {
 	case "image":
-		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaImage)
-		if err != nil {
-			bridgeLog.Warnf("upload error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
-		}
 		msg = &waE2E.Message{
 			ImageMessage: &waE2E.ImageMessage{
 				Caption:       proto.String(caption),
@@ -137,15 +145,10 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    proto.Uint64(uint64(len(data))),
+				FileLength:    fileLen,
 			},
 		}
 	case "video":
-		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaVideo)
-		if err != nil {
-			bridgeLog.Warnf("upload error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
-		}
 		msg = &waE2E.Message{
 			VideoMessage: &waE2E.VideoMessage{
 				Caption:       proto.String(caption),
@@ -155,15 +158,10 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    proto.Uint64(uint64(len(data))),
+				FileLength:    fileLen,
 			},
 		}
 	case "audio":
-		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaAudio)
-		if err != nil {
-			bridgeLog.Warnf("upload error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
-		}
 		msg = &waE2E.Message{
 			AudioMessage: &waE2E.AudioMessage{
 				Mimetype:      proto.String(mimetype),
@@ -172,15 +170,10 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    proto.Uint64(uint64(len(data))),
+				FileLength:    fileLen,
 			},
 		}
 	case "document":
-		uploaded, err := client.Upload(context.Background(), data, whatsmeow.MediaDocument)
-		if err != nil {
-			bridgeLog.Warnf("upload error: %v", err)
-			return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
-		}
 		msg = &waE2E.Message{
 			DocumentMessage: &waE2E.DocumentMessage{
 				Caption:       proto.String(caption),
@@ -191,7 +184,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				MediaKey:      uploaded.MediaKey,
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    proto.Uint64(uint64(len(data))),
+				FileLength:    fileLen,
 			},
 		}
 	}
@@ -302,6 +295,40 @@ func (s *Session) cmdSendChatPresence(cmd Command) Response {
 	if err != nil {
 		bridgeLog.Warnf("send_chat_presence error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to send chat presence"}}
+	}
+
+	return Response{Result: map[string]interface{}{"ok": true}}
+}
+
+func (s *Session) cmdMarkRead(cmd Command) Response {
+	chat, err := s.parseJID(cmd.Params, "chat")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	sender, err := s.parseJID(cmd.Params, "sender")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	rawIds, ok := cmd.Params["messageIds"].([]interface{})
+	if !ok || len(rawIds) == 0 {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing or empty 'messageIds' parameter"}}
+	}
+
+	ids := make([]types.MessageID, len(rawIds))
+	for i, raw := range rawIds {
+		id, ok := raw.(string)
+		if !ok || id == "" {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("invalid message ID at index %d", i)}}
+		}
+		ids[i] = types.MessageID(id)
+	}
+
+	err = s.getClient().MarkRead(context.Background(), ids, time.Now(), chat, sender)
+	if err != nil {
+		bridgeLog.Warnf("mark_read error: %v", err)
+		return Response{Error: &ErrorInfo{Code: 1008, Message: "failed to mark as read"}}
 	}
 
 	return Response{Result: map[string]interface{}{"ok": true}}

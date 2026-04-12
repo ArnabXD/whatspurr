@@ -1,10 +1,5 @@
 import type { Bridge } from "./bridge.ts";
-import type {
-  JID,
-  SendResult,
-  MediaSendOptions,
-  GroupInfo,
-} from "./types.ts";
+import type { GroupInfo, JID, MediaSendOptions, SendResult } from "./types.ts";
 
 export class Api {
   constructor(private bridge: Bridge) {}
@@ -64,12 +59,12 @@ export class Api {
     return result as unknown as GroupInfo;
   }
 
-  async sendChatPresence(
-    to: JID,
-    state: "composing" | "paused",
-    media?: "text" | "audio",
-  ): Promise<void> {
+  async sendChatPresence(to: JID, state: "composing" | "paused", media?: "text" | "audio"): Promise<void> {
     await this.bridge.send("send_chat_presence", { to, state, media });
+  }
+
+  async markRead(chat: JID, sender: JID, messageIds: string[]): Promise<void> {
+    await this.bridge.send("mark_read", { chat, sender, messageIds });
   }
 
   async setPresence(type: "available" | "unavailable"): Promise<void> {

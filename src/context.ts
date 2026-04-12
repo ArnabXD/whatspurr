@@ -1,10 +1,19 @@
 import type { Api } from "./api.ts";
 import type {
-  Message,
-  JID,
-  SendResult,
-  MediaSendOptions,
+  ConnectedEvent,
+  DisconnectedEvent,
   EventData,
+  GroupJoinEvent,
+  GroupLeaveEvent,
+  GroupUpdateEvent,
+  JID,
+  MediaSendOptions,
+  Message,
+  PresenceEvent,
+  QrEvent,
+  ReactionEvent,
+  ReceiptEvent,
+  SendResult,
 } from "./types.ts";
 
 export class Context {
@@ -67,6 +76,51 @@ export class Context {
     return this.message?.isFromMe ?? false;
   }
 
+  /** QR event data (only on "qr" events) */
+  get qr(): QrEvent | undefined {
+    return this.eventData.event === "qr" ? this.eventData.data : undefined;
+  }
+
+  /** Connected event data (only on "connected" events) */
+  get connected(): ConnectedEvent | undefined {
+    return this.eventData.event === "connected" ? this.eventData.data : undefined;
+  }
+
+  /** Disconnected event data (only on "disconnected" events) */
+  get disconnected(): DisconnectedEvent | undefined {
+    return this.eventData.event === "disconnected" ? this.eventData.data : undefined;
+  }
+
+  /** Reaction event data (only on "message_reaction" events) */
+  get reaction(): ReactionEvent | undefined {
+    return this.eventData.event === "message_reaction" ? this.eventData.data : undefined;
+  }
+
+  /** Receipt event data (only on "receipt" events) */
+  get receipt(): ReceiptEvent | undefined {
+    return this.eventData.event === "receipt" ? this.eventData.data : undefined;
+  }
+
+  /** Presence event data (only on "presence" events) */
+  get presence(): PresenceEvent | undefined {
+    return this.eventData.event === "presence" ? this.eventData.data : undefined;
+  }
+
+  /** Group join event data (only on "group_join" events) */
+  get groupJoin(): GroupJoinEvent | undefined {
+    return this.eventData.event === "group_join" ? this.eventData.data : undefined;
+  }
+
+  /** Group leave event data (only on "group_leave" events) */
+  get groupLeave(): GroupLeaveEvent | undefined {
+    return this.eventData.event === "group_leave" ? this.eventData.data : undefined;
+  }
+
+  /** Group update event data (only on "group_update" events) */
+  get groupUpdate(): GroupUpdateEvent | undefined {
+    return this.eventData.event === "group_update" ? this.eventData.data : undefined;
+  }
+
   /** Reply with a text message to the current chat */
   async reply(text: string): Promise<SendResult> {
     const chat = this.chat;
@@ -121,6 +175,15 @@ export class Context {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to send paused to");
     return this.api.sendChatPresence(chat, "paused");
+  }
+
+  /** Mark the current message as read */
+  async markRead(): Promise<void> {
+    const chat = this.chat;
+    const from = this.from;
+    const msgId = this.message?.id;
+    if (!chat || !from || !msgId) throw new Error("No message to mark as read");
+    return this.api.markRead(chat, from, [msgId]);
   }
 
   /** React to the current message with an emoji */
