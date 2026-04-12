@@ -1,6 +1,8 @@
 # whatspurr
 
-A grammY-style TypeScript library for WhatsApp, powered by [whatsmeow](https://github.com/tulir/whatsmeow) (Go) via a WebSocket sidecar.
+A [grammY](https://grammy.dev)-style TypeScript library for WhatsApp, powered by [whatsmeow](https://github.com/tulir/whatsmeow) (Go) via a WebSocket sidecar.
+
+**[Documentation](https://whatspurr.arnabxd.me)** | **[API Reference](https://npmx.dev/package-docs/@arnabxd/whatspurr/)**
 
 ## Install
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Circle background -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg)"/>
+
+  <!-- Paw print - main pad -->
+  <ellipse cx="256" cy="310" rx="100" ry="85" fill="#f5f3ff"/>
+
+  <!-- Paw toes -->
+  <ellipse cx="155" cy="200" rx="45" ry="52" fill="#f5f3ff" transform="rotate(-15 155 200)"/>
+  <ellipse cx="256" cy="165" rx="42" ry="52" fill="#f5f3ff"/>
+  <ellipse cx="357" cy="200" rx="45" ry="52" fill="#f5f3ff" transform="rotate(15 357 200)"/>
+
+  <!-- Terminal cursor in main pad -->
+  <text x="228" y="330" font-family="monospace" font-weight="bold" font-size="76" fill="#7c3aed">&gt;_</text>
+</svg>
