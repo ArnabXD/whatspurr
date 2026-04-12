@@ -1,47 +1,48 @@
 // Main class
-export { WhatsApp } from "./whatsapp.ts";
 
+export { Api } from "./api.ts";
+export { Bridge } from "./bridge.ts";
 // Building blocks
 export { Composer } from "./composer.ts";
 export { Context } from "./context.ts";
-export { Api } from "./api.ts";
-export { Bridge } from "./bridge.ts";
-
 // Filters
 export { filters } from "./filters.ts";
-
 // Types
 export type {
-  // Config
-  WhatsAppConfig,
-  // JID
-  JID,
-  // Messages
-  MessageType,
-  MessageInfo,
-  TextMessage,
-  MediaMessage,
+  ConnectedEvent,
   ContactMessage,
-  LocationMessage,
-  Message,
+  DisconnectedEvent,
+  EventData,
   // Events
   EventType,
-  EventData,
-  QrEvent,
-  ConnectedEvent,
-  DisconnectedEvent,
-  ReactionEvent,
-  ReceiptEvent,
-  PresenceEvent,
+  // Context narrowing
+  FilterQuery,
   GroupInfo,
-  GroupParticipant,
   GroupJoinEvent,
   GroupLeaveEvent,
+  GroupParticipant,
   GroupUpdateEvent,
-  // API
-  SendResult,
+  // JID
+  JID,
+  LocationMessage,
+  MediaMessage,
   MediaSendOptions,
+  Message,
+  MessageInfo,
+  // Messages
+  MessageType,
   // Middleware
   MiddlewareFn,
+  NarrowContext,
   NextFn,
+  PresenceEvent,
+  QrEvent,
+  ReactionEvent,
+  ReceiptEvent,
+  // API
+  SendResult,
+  TextMessage,
+  // Config
+  WhatsAppConfig,
 } from "./types.ts";
+export { WhatsApp } from "./whatsapp.ts";

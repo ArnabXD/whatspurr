@@ -23,15 +23,7 @@ export interface WhatsAppConfig {
 }
 
 // ── Messages ─────────────────────────────────────────────────────────────────
-export type MessageType =
-  | "text"
-  | "image"
-  | "video"
-  | "audio"
-  | "document"
-  | "sticker"
-  | "contact"
-  | "location";
+export type MessageType = "text" | "image" | "video" | "audio" | "document" | "sticker" | "contact" | "location";
 
 export interface MessageInfo {
   id: string;
@@ -194,6 +186,55 @@ export interface EventMessage {
 }
 
 export type WireMessage = CommandResponse | EventMessage;
+
+// ── Context Narrowing ────────────────────────────────────────────────────────
+
+type MessageNarrow = {
+  readonly message: Message;
+  readonly from: JID;
+  readonly chat: JID;
+};
+
+type TextMessageNarrow = MessageNarrow & {
+  readonly message: TextMessage;
+  readonly text: string;
+};
+
+type MediaMessageNarrow = MessageNarrow & {
+  readonly message: MediaMessage;
+};
+
+type ContactMessageNarrow = MessageNarrow & {
+  readonly message: ContactMessage;
+};
+
+type LocationMessageNarrow = MessageNarrow & {
+  readonly message: LocationMessage;
+};
+
+type FilterNarrowMap = {
+  message: MessageNarrow;
+  "message:text": TextMessageNarrow;
+  "message:image": MediaMessageNarrow;
+  "message:video": MediaMessageNarrow;
+  "message:audio": MediaMessageNarrow;
+  "message:document": MediaMessageNarrow;
+  "message:sticker": MediaMessageNarrow;
+  "message:contact": ContactMessageNarrow;
+  "message:location": LocationMessageNarrow;
+  message_reaction: { readonly reaction: ReactionEvent };
+  receipt: { readonly receipt: ReceiptEvent };
+  presence: { readonly presence: PresenceEvent };
+  qr: { readonly qr: QrEvent };
+  connected: { readonly connected: ConnectedEvent };
+  disconnected: { readonly disconnected: DisconnectedEvent };
+  group_join: { readonly groupJoin: GroupJoinEvent };
+  group_leave: { readonly groupLeave: GroupLeaveEvent };
+  group_update: { readonly groupUpdate: GroupUpdateEvent };
+};
+
+export type FilterQuery = keyof FilterNarrowMap;
+export type NarrowContext<C, Q extends FilterQuery> = C & FilterNarrowMap[Q];
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 export type NextFn = () => Promise<void>;

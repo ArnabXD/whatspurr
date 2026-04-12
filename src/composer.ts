@@ -1,5 +1,5 @@
 import type { Context } from "./context.ts";
-import type { MiddlewareFn, NextFn } from "./types.ts";
+import type { FilterQuery, MiddlewareFn, NarrowContext, NextFn } from "./types.ts";
 
 type MaybeArray<T> = T | T[];
 
@@ -13,13 +13,13 @@ export class Composer<C extends Context = Context> {
   }
 
   /** Handle events matching a filter string (e.g. "message", "message:text", "group_join") */
-  on(filter: MaybeArray<string>, ...fns: MiddlewareFn<C>[]): this {
+  on<Q extends FilterQuery>(filter: MaybeArray<Q>, ...fns: MiddlewareFn<NarrowContext<C, Q>>[]): this {
     const filters = Array.isArray(filter) ? filter : [filter];
-    return this.use(filterMiddleware(filters, fns));
+    return this.use(filterMiddleware(filters, fns as unknown as MiddlewareFn<C>[]));
   }
 
   /** Handle text messages matching a pattern */
-  hears(trigger: RegExp | string, ...fns: MiddlewareFn<C>[]): this {
+  hears(trigger: RegExp | string, ...fns: MiddlewareFn<NarrowContext<C, "message:text">>[]): this {
     const regex = typeof trigger === "string" ? new RegExp(trigger) : trigger;
     return this.use((ctx, next) => {
       const text = ctx.text;
@@ -27,19 +27,19 @@ export class Composer<C extends Context = Context> {
       const match = text.match(regex);
       if (!match) return next();
       ctx.match = match;
-      return run(fns, ctx);
+      return run(fns as unknown as MiddlewareFn<C>[], ctx);
     });
   }
 
   /** Handle command messages (e.g. "/start", "/help args") */
-  command(name: string, ...fns: MiddlewareFn<C>[]): this {
+  command(name: string, ...fns: MiddlewareFn<NarrowContext<C, "message:text">>[]): this {
     const prefix = `/${name}`;
     return this.use((ctx, next) => {
       const text = ctx.text;
       if (text == null) return next();
       if (text !== prefix && !text.startsWith(`${prefix} `)) return next();
       ctx.commandArgs = text.slice(prefix.length).trim();
-      return run(fns, ctx);
+      return run(fns as unknown as MiddlewareFn<C>[], ctx);
     });
   }
 
@@ -74,11 +74,7 @@ export class Composer<C extends Context = Context> {
 }
 
 /** Run a middleware chain (onion model) */
-function run<C extends Context>(
-  middlewares: MiddlewareFn<C>[],
-  ctx: C,
-  fallback?: NextFn,
-): Promise<void> {
+function run<C extends Context>(middlewares: MiddlewareFn<C>[], ctx: C, fallback?: NextFn): Promise<void> {
   let index = -1;
 
   function dispatch(i: number): Promise<void> {
@@ -95,10 +91,7 @@ function run<C extends Context>(
 }
 
 /** Create middleware that only runs if the event matches filter strings */
-function filterMiddleware<C extends Context>(
-  filters: string[],
-  fns: MiddlewareFn<C>[],
-): MiddlewareFn<C> {
+function filterMiddleware<C extends Context>(filters: FilterQuery[], fns: MiddlewareFn<C>[]): MiddlewareFn<C> {
   return (ctx, next) => {
     const eventType = ctx.eventType;
     const msgType = ctx.message?.type;
