@@ -31,6 +31,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
 
       - name: Build
         working-directory: go
@@ -61,14 +62,14 @@ jobs:
       - run: bun install
 
       - name: Generate changelog
-        run: bunx changelogen --dry > RELEASE_NOTES.md
+        run: bunx changelogen --output RELEASE_NOTES.md
 
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: bridge-*
           body_path: RELEASE_NOTES.md
