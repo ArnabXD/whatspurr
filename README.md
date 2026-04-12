@@ -64,10 +64,13 @@ process.on("SIGINT", async () => {
 
 ```ts
 const wa = new WhatsApp({
-  sessionDir: "./session",       // Session/auth data directory
-  logLevel: "info",              // debug | info | warn | error
-  binaryPath: "/path/to/bridge", // Use a specific binary (skip auto-download)
-  binaryVersion: "v0.1.0",      // Pin a release version (default: "latest")
+  sessionDir: "./session",              // Session/auth data directory (default: "./session")
+  dbName: "whatspurr.db",               // SQLite database filename (default: "whatspurr.db")
+  logLevel: "info",                     // debug | info | warn | error
+  binaryPath: "/path/to/bridge",        // Use a specific binary (skip auto-download)
+  binaryRepo: "ArnabXD/whatspurr",      // GitHub owner/repo for binary downloads
+  binaryVersion: "v0.1.0",             // Pin a release version (default: "latest")
+  autoPresence: true,                   // Send "available" presence on connect (default: true)
 });
 ```
 
@@ -77,7 +80,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams covering the startu
 
 ## License
 
-MIT
+GPL-3.0
 
 ## Author
 
