@@ -37,7 +37,7 @@
   },
   "keywords": ["whatsapp", "whatsmeow", "bot", "chatbot", "middleware"],
   "author": "ArnabXD",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ArnabXD/whatspurr.git"
