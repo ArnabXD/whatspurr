@@ -1,16 +1,30 @@
 {
-  "name": "whatspurr",
-  "version": "0.1.0",
-  "module": "src/index.ts",
+  "name": "@arnabxd/whatspurr",
+  "version": "0.1.0-rc-02",
+  "description": "A grammY-style TypeScript library for WhatsApp, powered by whatsmeow (Go)",
   "type": "module",
-  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build src/*.ts --outdir dist --target node --format esm",
+    "build:types": "tsc -p tsconfig.build.json",
     "build:go": "bun run scripts/build-go.ts",
     "release:go": "bun run scripts/release.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -20,5 +34,12 @@
   },
   "dependencies": {
     "uqr": "^0.1.3"
+  },
+  "keywords": ["whatsapp", "whatsmeow", "bot", "chatbot", "middleware"],
+  "author": "ArnabXD",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArnabXD/whatspurr.git"
   }
 }
