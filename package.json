@@ -23,9 +23,13 @@
     "build:go": "bun run scripts/build-go.ts",
     "release:go": "bun run scripts/release.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix .",
+    "format": "biome format --write .",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
     "@types/bun": "latest"
   },
   "peerDependencies": {

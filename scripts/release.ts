@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Cross-compile Go bridge for all supported platforms.
  * Usage: bun run scripts/release.ts
@@ -6,9 +7,9 @@
  * Outputs binaries to dist/ directory.
  */
 
-import { $ } from "bun";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { $ } from "bun";
 
 const ROOT = join(import.meta.dirname, "..");
 const GO_DIR = join(ROOT, "go");

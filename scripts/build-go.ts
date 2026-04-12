@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
+
 /**
  * Build the Go bridge binary for local development.
  * Usage: bun run scripts/build-go.ts
  */
 
-import { $ } from "bun";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { $ } from "bun";
 
 const ROOT = join(import.meta.dirname, "..");
 const GO_DIR = join(ROOT, "go");

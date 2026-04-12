@@ -1,17 +1,15 @@
+import { Api } from "./api.ts";
+import { Bridge } from "./bridge.ts";
 import { Composer } from "./composer.ts";
 import { Context } from "./context.ts";
-import { Bridge } from "./bridge.ts";
-import { Api } from "./api.ts";
-import type { WhatsAppConfig, EventData, MiddlewareFn } from "./types.ts";
+import type { EventData, WhatsAppConfig } from "./types.ts";
 
 export class WhatsApp extends Composer<Context> {
   readonly api: Api;
   private bridge: Bridge;
-  private config: WhatsAppConfig;
 
   constructor(config: WhatsAppConfig = {}) {
     super();
-    this.config = config;
     this.bridge = new Bridge(config);
     this.api = new Api(this.bridge);
   }
