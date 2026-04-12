@@ -38,9 +38,9 @@ wa.on("message:image", async (ctx) => {
 | `disconnected` | Disconnected |
 | `receipt` | Delivery/read receipts |
 | `presence` | Online/typing status |
-| `group_join` | Member joined group |
-| `group_leave` | Member left group |
-| `group_update` | Group info changed |
+| `group_join` | Bot joined a group |
+| `group_leave` | Not yet implemented |
+| `group_update` | Group name or topic changed |
 
 ## Multiple Filters
 

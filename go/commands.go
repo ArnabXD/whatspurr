@@ -59,6 +59,18 @@ func (s *Session) parseJID(params map[string]interface{}, key string) (types.JID
 	return jid, nil
 }
 
+func (s *Session) buildContextInfo(params map[string]interface{}) *waE2E.ContextInfo {
+	quotedId, _ := params["quotedId"].(string)
+	quotedSender, _ := params["quotedSender"].(string)
+	if quotedId == "" {
+		return nil
+	}
+	return &waE2E.ContextInfo{
+		StanzaID:    proto.String(quotedId),
+		Participant: proto.String(quotedSender),
+	}
+}
+
 func (s *Session) cmdSendMessage(cmd Command) Response {
 	to, err := s.parseJID(cmd.Params, "to")
 	if err != nil {
@@ -70,9 +82,21 @@ func (s *Session) cmdSendMessage(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'text' parameter"}}
 	}
 
-	resp, err := s.getClient().SendMessage(context.Background(), to, &waE2E.Message{
-		Conversation: proto.String(text),
-	})
+	var msg *waE2E.Message
+	if ci := s.buildContextInfo(cmd.Params); ci != nil {
+		msg = &waE2E.Message{
+			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+				Text:        proto.String(text),
+				ContextInfo: ci,
+			},
+		}
+	} else {
+		msg = &waE2E.Message{
+			Conversation: proto.String(text),
+		}
+	}
+
+	resp, err := s.getClient().SendMessage(context.Background(), to, msg)
 	if err != nil {
 		bridgeLog.Warnf("send_message error: %v", err)
 		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
@@ -123,6 +147,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	caption, _ := cmd.Params["caption"].(string)
 	mimetype, _ := cmd.Params["mimetype"].(string)
 	filename, _ := cmd.Params["filename"].(string)
+	contextInfo := s.buildContextInfo(cmd.Params)
 
 	client := s.getClient()
 	uploaded, err := client.Upload(context.Background(), data, mediaUploadType[mediaType])
@@ -146,6 +171,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
 				FileLength:    fileLen,
+				ContextInfo:   contextInfo,
 			},
 		}
 	case "video":
@@ -159,6 +185,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
 				FileLength:    fileLen,
+				ContextInfo:   contextInfo,
 			},
 		}
 	case "audio":
@@ -171,6 +198,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
 				FileLength:    fileLen,
+				ContextInfo:   contextInfo,
 			},
 		}
 	case "document":
@@ -185,6 +213,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 				FileEncSHA256: uploaded.FileEncSHA256,
 				FileSHA256:    uploaded.FileSHA256,
 				FileLength:    fileLen,
+				ContextInfo:   contextInfo,
 			},
 		}
 	}

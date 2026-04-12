@@ -245,7 +245,16 @@ export interface SendResult {
   messageId: string;
 }
 
-export interface MediaSendOptions {
+export interface QuoteOptions {
+  /** Message ID to quote (creates a quoted reply) */
+  quotedMessageId?: string;
+  /** Sender JID of the quoted message (required for group quotes) */
+  quotedSender?: JID;
+}
+
+export interface SendOptions extends QuoteOptions {}
+
+export interface MediaSendOptions extends QuoteOptions {
   caption?: string;
   filename?: string;
   mimetype?: string;

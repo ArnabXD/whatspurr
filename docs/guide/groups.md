@@ -2,26 +2,27 @@
 
 ## Group Events
 
-Listen for group membership and info changes:
+Listen for group info changes:
 
 ```ts
 wa.on("group_join", async (ctx) => {
+  // Fires when the bot itself is added to a group
   const { chat, participants } = ctx.groupJoin;
-  for (const jid of participants) {
-    await wa.api.sendMessage(chat, `Welcome, ${jid}!`);
-  }
-});
-
-wa.on("group_leave", async (ctx) => {
-  const { chat, participants } = ctx.groupLeave;
-  console.log(`${participants.join(", ")} left ${chat}`);
+  console.log(`Bot joined group ${chat}`);
 });
 
 wa.on("group_update", async (ctx) => {
+  // Fires when group name or topic changes
   const { chat, field, value } = ctx.groupUpdate;
   console.log(`Group ${chat} updated ${field}: ${value}`);
 });
 ```
+
+::: info Limitations
+- `group_join` only fires when the **bot itself** joins a group, not when other participants join.
+- `group_leave` is not yet implemented.
+- `group_update` currently tracks `name` and `topic` changes only.
+:::
 
 ## Group Info
 

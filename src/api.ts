@@ -1,11 +1,19 @@
 import type { Bridge } from "./bridge.ts";
-import type { GroupInfo, JID, MediaSendOptions, SendResult } from "./types.ts";
+import type { GroupInfo, JID, MediaSendOptions, QuoteOptions, SendOptions, SendResult } from "./types.ts";
 
 export class Api {
   constructor(private bridge: Bridge) {}
 
-  async sendMessage(to: JID, text: string): Promise<SendResult> {
-    const result = await this.bridge.send("send_message", { to, text });
+  private quoteParams(options: QuoteOptions) {
+    if (!options.quotedMessageId) return {};
+    return {
+      quotedId: options.quotedMessageId,
+      quotedSender: options.quotedSender ?? "",
+    };
+  }
+
+  async sendMessage(to: JID, text: string, options: SendOptions = {}): Promise<SendResult> {
+    const result = await this.bridge.send("send_message", { to, text, ...this.quoteParams(options) });
     return { messageId: result.messageId as string };
   }
 
@@ -15,6 +23,7 @@ export class Api {
       data: Buffer.from(data).toString("base64"),
       mimetype: options.mimetype ?? "image/jpeg",
       caption: options.caption,
+      ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };
   }
@@ -25,6 +34,7 @@ export class Api {
       data: Buffer.from(data).toString("base64"),
       mimetype: options.mimetype ?? "video/mp4",
       caption: options.caption,
+      ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };
   }
@@ -34,6 +44,7 @@ export class Api {
       to,
       data: Buffer.from(data).toString("base64"),
       mimetype: options.mimetype ?? "audio/ogg",
+      ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };
   }
@@ -45,6 +56,7 @@ export class Api {
       mimetype: options.mimetype ?? "application/octet-stream",
       caption: options.caption,
       filename: options.filename,
+      ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };
   }

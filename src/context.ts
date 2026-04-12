@@ -11,8 +11,10 @@ import type {
   Message,
   PresenceEvent,
   QrEvent,
+  QuoteOptions,
   ReactionEvent,
   ReceiptEvent,
+  SendOptions,
   SendResult,
 } from "./types.ts";
 
@@ -121,38 +123,80 @@ export class Context {
     return this.eventData.event === "group_update" ? this.eventData.data : undefined;
   }
 
-  /** Reply with a text message to the current chat */
-  async reply(text: string): Promise<SendResult> {
-    const chat = this.chat;
-    if (!chat) throw new Error("No chat to reply to");
-    return this.api.sendMessage(chat, text);
+  /** Build quote options that reference the current message */
+  private get quoteOptions(): QuoteOptions {
+    const msg = this.message;
+    if (!msg) return {};
+    return { quotedMessageId: msg.id, quotedSender: msg.from };
   }
 
-  /** Reply with an image to the current chat */
+  /** Reply to the current message (quoted reply) */
+  async reply(text: string, options: SendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to reply to");
+    return this.api.sendMessage(chat, text, { ...this.quoteOptions, ...options });
+  }
+
+  /** Reply with an image (quoted reply) */
   async replyWithImage(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to reply to");
-    return this.api.sendImage(chat, data, options);
+    return this.api.sendImage(chat, data, { ...this.quoteOptions, ...options });
   }
 
-  /** Reply with a video to the current chat */
+  /** Reply with a video (quoted reply) */
   async replyWithVideo(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to reply to");
-    return this.api.sendVideo(chat, data, options);
+    return this.api.sendVideo(chat, data, { ...this.quoteOptions, ...options });
   }
 
-  /** Reply with audio to the current chat */
+  /** Reply with audio (quoted reply) */
   async replyWithAudio(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to reply to");
-    return this.api.sendAudio(chat, data, options);
+    return this.api.sendAudio(chat, data, { ...this.quoteOptions, ...options });
   }
 
-  /** Reply with a document to the current chat */
+  /** Reply with a document (quoted reply) */
   async replyWithDocument(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to reply to");
+    return this.api.sendDocument(chat, data, { ...this.quoteOptions, ...options });
+  }
+
+  /** Send a text message to the current chat (without quoting) */
+  async send(text: string, options: SendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send to");
+    return this.api.sendMessage(chat, text, options);
+  }
+
+  /** Send an image to the current chat (without quoting) */
+  async sendImage(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send to");
+    return this.api.sendImage(chat, data, options);
+  }
+
+  /** Send a video to the current chat (without quoting) */
+  async sendVideo(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send to");
+    return this.api.sendVideo(chat, data, options);
+  }
+
+  /** Send audio to the current chat (without quoting) */
+  async sendAudio(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send to");
+    return this.api.sendAudio(chat, data, options);
+  }
+
+  /** Send a document to the current chat (without quoting) */
+  async sendDocument(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to send to");
     return this.api.sendDocument(chat, data, options);
   }
 

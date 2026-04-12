@@ -21,15 +21,6 @@ wa.command("doc", async (ctx) => {
 });
 ```
 
-### Available Methods
-
-| Method | Description |
-|--------|-------------|
-| `ctx.replyWithImage(data, options?)` | Send an image |
-| `ctx.replyWithVideo(data, options?)` | Send a video |
-| `ctx.replyWithAudio(data, options?)` | Send audio |
-| `ctx.replyWithDocument(data, options?)` | Send a document |
-
 ### Media Options
 
 ```ts
@@ -39,6 +30,10 @@ interface MediaSendOptions {
   mimetype?: string;  // MIME type (defaults: image/jpeg, video/mp4, audio/ogg)
 }
 ```
+
+::: tip
+All media methods come in `reply` and `send` variants — see [Messaging](/guide/messaging) for the difference.
+:::
 
 ## Sending via API
 

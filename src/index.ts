@@ -33,6 +33,8 @@ export type {
   MessageType,
   // Middleware
   MiddlewareFn,
+  // Quote options
+  QuoteOptions,
   NarrowContext,
   NextFn,
   PresenceEvent,
@@ -40,6 +42,7 @@ export type {
   ReactionEvent,
   ReceiptEvent,
   // API
+  SendOptions,
   SendResult,
   TextMessage,
   // Config

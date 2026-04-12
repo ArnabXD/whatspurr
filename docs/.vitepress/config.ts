@@ -33,6 +33,7 @@ export default defineConfig({
         items: [
           { text: "Middleware", link: "/guide/middleware" },
           { text: "Filters & Events", link: "/guide/filters" },
+          { text: "Messaging", link: "/guide/messaging" },
           { text: "Media", link: "/guide/media" },
           { text: "Groups", link: "/guide/groups" },
         ],
