@@ -5,7 +5,7 @@ A grammY-style TypeScript library for WhatsApp, powered by [whatsmeow](https://g
 ## Install
 
 ```bash
-bun install
+bun add @arnabxd/whatspurr
 ```
 
 The Go bridge binary is automatically downloaded on first `wa.start()`. To build from source instead:
@@ -17,7 +17,7 @@ bun run build:go
 ## Example
 
 ```ts
-import { WhatsApp } from "whatspurr";
+import { WhatsApp } from "@arnabxd/whatspurr";
 import { renderUnicodeCompact } from "uqr";
 
 const wa = new WhatsApp({
