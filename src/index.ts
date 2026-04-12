@@ -7,6 +7,7 @@ export { Composer } from "./composer.ts";
 export { Context } from "./context.ts";
 // Filters
 export { filters } from "./filters.ts";
+export { WhatsAppManager } from "./manager.ts";
 // Types
 export type {
   ConnectedEvent,
@@ -45,6 +46,7 @@ export type {
   // API
   SendOptions,
   SendResult,
+  SessionInfo,
   TextMessage,
   // Config
   WhatsAppConfig,

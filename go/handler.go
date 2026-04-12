@@ -15,11 +15,18 @@ func (s *Session) connectWhatsmeow() {
 
 	if client.Store.ID == nil {
 		// No session yet — need QR auth
-		qrChan, _ := client.GetQRChannel(context.Background())
-		err := client.Connect()
+		qrChan, err := client.GetQRChannel(context.Background())
 		if err != nil {
-			bridgeLog.Errorf("Connect error: %v", err)
-			s.sendEvent("disconnected", map[string]interface{}{
+			bridgeLog.Errorf("[%s] GetQRChannel error: %v", s.name, err)
+			s.manager.sendEvent(s.name, "disconnected", map[string]interface{}{
+				"reason": fmt.Sprintf("QR channel failed: %v", err),
+			})
+			return
+		}
+		err = client.Connect()
+		if err != nil {
+			bridgeLog.Errorf("[%s] Connect error: %v", s.name, err)
+			s.manager.sendEvent(s.name, "disconnected", map[string]interface{}{
 				"reason": fmt.Sprintf("connect failed: %v", err),
 			})
 			return
@@ -30,13 +37,13 @@ func (s *Session) connectWhatsmeow() {
 			for evt := range qrChan {
 				switch evt.Event {
 				case "code":
-					s.sendEvent("qr", map[string]interface{}{
+					s.manager.sendEvent(s.name, "qr", map[string]interface{}{
 						"code": evt.Code,
 					})
 				case "success":
 					// Connected event will be sent by the event handler
 				case "timeout":
-					s.sendEvent("disconnected", map[string]interface{}{
+					s.manager.sendEvent(s.name, "disconnected", map[string]interface{}{
 						"reason": "QR code timeout",
 					})
 				}
@@ -46,8 +53,8 @@ func (s *Session) connectWhatsmeow() {
 		// Already have session, just connect
 		err := client.Connect()
 		if err != nil {
-			bridgeLog.Errorf("Connect error: %v", err)
-			s.sendEvent("disconnected", map[string]interface{}{
+			bridgeLog.Errorf("[%s] Connect error: %v", s.name, err)
+			s.manager.sendEvent(s.name, "disconnected", map[string]interface{}{
 				"reason": fmt.Sprintf("connect failed: %v", err),
 			})
 		}
@@ -60,19 +67,20 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 		jid := ""
 		if s.client.Store.ID != nil {
 			jid = s.client.Store.ID.String()
+			// Persist name → JID mapping so we can find this device on restart
+			s.manager.setNameMapping(s.name, jid)
 		}
-		// Auto-send presence so we receive read receipts and presence updates
 		if autoPresence {
 			if err := s.client.SendPresence(context.Background(), types.PresenceAvailable); err != nil {
-				bridgeLog.Warnf("Failed to send presence: %v", err)
+				bridgeLog.Warnf("[%s] Failed to send presence: %v", s.name, err)
 			}
 		}
-		s.sendEvent("connected", map[string]interface{}{
+		s.manager.sendEvent(s.name, "connected", map[string]interface{}{
 			"jid": jid,
 		})
 
 	case *events.Disconnected:
-		s.sendEvent("disconnected", map[string]interface{}{
+		s.manager.sendEvent(s.name, "disconnected", map[string]interface{}{
 			"reason": "disconnected",
 		})
 
@@ -88,7 +96,7 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 			receiptType = "delivered"
 		}
 
-		s.sendEvent("receipt", map[string]interface{}{
+		s.manager.sendEvent(s.name, "receipt", map[string]interface{}{
 			"from":       v.MessageSource.Sender.String(),
 			"chat":       v.MessageSource.Chat.String(),
 			"messageIds": v.MessageIDs,
@@ -101,7 +109,7 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 		if !v.Unavailable {
 			presenceType = "available"
 		}
-		s.sendEvent("presence", map[string]interface{}{
+		s.manager.sendEvent(s.name, "presence", map[string]interface{}{
 			"from":     v.From.String(),
 			"chat":     v.From.String(),
 			"type":     presenceType,
@@ -113,14 +121,14 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 		for i, p := range v.GroupInfo.Participants {
 			participants[i] = p.JID.String()
 		}
-		s.sendEvent("group_join", map[string]interface{}{
+		s.manager.sendEvent(s.name, "group_join", map[string]interface{}{
 			"chat":         v.JID.String(),
 			"participants": participants,
 		})
 
 	case *events.GroupInfo:
 		if v.Name != nil {
-			s.sendEvent("group_update", map[string]interface{}{
+			s.manager.sendEvent(s.name, "group_update", map[string]interface{}{
 				"chat":      v.JID.String(),
 				"field":     "name",
 				"value":     v.Name.Name,
@@ -128,7 +136,7 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 			})
 		}
 		if v.Topic != nil {
-			s.sendEvent("group_update", map[string]interface{}{
+			s.manager.sendEvent(s.name, "group_update", map[string]interface{}{
 				"chat":      v.JID.String(),
 				"field":     "topic",
 				"value":     v.Topic.Topic,
@@ -139,7 +147,6 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 }
 
 func (s *Session) handleMessageEvent(v *events.Message) {
-	// Skip outgoing messages unless subscribed
 	if v.Info.IsFromMe && !subscribeOutgoing {
 		return
 	}
@@ -156,9 +163,9 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		"isFromMe":  v.Info.IsFromMe,
 	}
 
-	// Reactions use a separate event type — handle and return early
+	// Reactions use a separate event type
 	if rm := msg.GetReactionMessage(); rm != nil {
-		s.sendEvent("message_reaction", map[string]interface{}{
+		s.manager.sendEvent(s.name, "message_reaction", map[string]interface{}{
 			"from":      v.Info.Sender.String(),
 			"chat":      v.Info.Chat.String(),
 			"messageId": rm.GetKey().GetID(),
@@ -226,15 +233,12 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["address"] = lm.GetAddress()
 
 	default:
-		return // unknown message type, don't emit
+		return
 	}
 
-	s.sendEvent("message", base)
+	s.manager.sendEvent(s.name, "message", base)
 }
 
-// encodeMediaRef serializes a media protobuf message into an opaque
-// "type:base64" string that contains all fields needed for download
-// (URL, encryption keys, hashes, etc.).
 func encodeMediaRef(mediaType string, msg proto.Message) string {
 	data, err := proto.Marshal(msg)
 	if err != nil {

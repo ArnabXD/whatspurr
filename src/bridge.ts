@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { arch, platform } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json";
-import type { Command, CommandResponse, EventMessage, WhatsAppConfig, WireMessage } from "./types.ts";
+import type { Command, CommandResponse, EventMessage, SessionEventData, WhatsAppConfig, WireMessage } from "./types.ts";
 
 const DEFAULT_SESSION_DIR = "./session";
 const DEFAULT_BINARY_REPO = "ArnabXD/whatspurr";
@@ -236,7 +236,11 @@ export class Bridge extends EventEmitter {
     // Event push from Go
     if ("type" in msg && msg.type === "event") {
       const event = msg as EventMessage;
-      this.emit("event", { event: event.event, data: event.data });
+      this.emit("event", {
+        session: event.session ?? "default",
+        event: event.event,
+        data: event.data,
+      } satisfies SessionEventData);
       return;
     }
 
@@ -256,13 +260,13 @@ export class Bridge extends EventEmitter {
   }
 
   /** Send a command to the Go bridge and await the response. */
-  async send(method: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
+  async send(method: string, params: Record<string, unknown> = {}, session?: string): Promise<Record<string, unknown>> {
     if (!this.ws || !this._ready) {
       throw new Error("Bridge is not connected");
     }
 
     const id = randomUUID();
-    const cmd: Command = { id, method, params };
+    const cmd: Command = { id, method, params, ...(session ? { session } : {}) };
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
