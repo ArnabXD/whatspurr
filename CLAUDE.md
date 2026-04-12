@@ -40,19 +40,20 @@ Default to using Bun instead of Node.js.
 
 ```
 src/              TypeScript library (grammY-style API)
-  whatsapp.ts     Main WhatsApp class (extends Composer)
+  whatsapp.ts     WhatsApp class (extends Composer, single or managed session)
+  manager.ts      WhatsAppManager for multi-session orchestration
   composer.ts     Middleware engine
   context.ts      Per-event context with reply helpers
   bridge.ts       Go process lifecycle + WS client
-  api.ts          Direct API methods
+  api.ts          Direct API methods (session-aware)
   types.ts        Type definitions
   filters.ts      Event filter predicates
   index.ts        Public exports
 go/               Go sidecar source
   main.go         Entry point, WS server on localhost
-  session.go      WS connection management
-  handler.go      whatsmeow events -> JSON
-  commands.go     JSON commands -> whatsmeow calls
+  session.go      SessionManager + per-session client lifecycle
+  handler.go      whatsmeow events -> JSON (session-tagged)
+  commands.go     JSON commands -> whatsmeow calls (per-session)
 scripts/          Build & distribution scripts
   build-go.ts     Local dev build
   postinstall.ts  Download prebuilt binary for end users

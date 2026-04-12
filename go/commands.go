@@ -34,19 +34,6 @@ func (s *Session) buildCommandHandlers() map[string]commandHandler {
 	}
 }
 
-func (s *Session) handleCommand(cmd Command) {
-	var resp Response
-
-	if handler, ok := s.handlers[cmd.Method]; ok {
-		resp = handler(cmd)
-	} else {
-		resp.Error = &ErrorInfo{Code: 1002, Message: fmt.Sprintf("unknown method: %s", cmd.Method)}
-	}
-
-	resp.ID = cmd.ID
-	s.sendResponse(resp)
-}
-
 func (s *Session) parseJID(params map[string]interface{}, key string) (types.JID, error) {
 	raw, ok := params[key].(string)
 	if !ok || raw == "" {
@@ -96,9 +83,10 @@ func (s *Session) cmdSendMessage(cmd Command) Response {
 		}
 	}
 
+	bridgeLog.Debugf("[%s] send_message to=%s", s.name, to.String())
 	resp, err := s.client.SendMessage(context.Background(), to, msg)
 	if err != nil {
-		bridgeLog.Warnf("send_message error: %v", err)
+		bridgeLog.Errorf("[%s] send_message error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
 	}
 
@@ -134,7 +122,6 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 
 	maxBytes := mediaSizeLimit[mediaType]
 
-	// DecodedLen returns max possible size (may overestimate by a few bytes due to padding)
 	if base64.StdEncoding.DecodedLen(len(dataB64)) > maxBytes {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("%s exceeds %d MB limit", mediaType, maxBytes/1024/1024)}}
 	}
@@ -152,7 +139,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	client := s.client
 	uploaded, err := client.Upload(context.Background(), data, mediaUploadType[mediaType])
 	if err != nil {
-		bridgeLog.Warnf("upload error: %v", err)
+		bridgeLog.Warnf("[%s] upload error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1005, Message: "media upload failed"}}
 	}
 
@@ -220,7 +207,7 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 
 	resp, err := client.SendMessage(context.Background(), to, msg)
 	if err != nil {
-		bridgeLog.Warnf("send_media error: %v", err)
+		bridgeLog.Warnf("[%s] send_media error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1004, Message: "send failed"}}
 	}
 
@@ -252,7 +239,7 @@ func (s *Session) cmdSendReaction(cmd Command) Response {
 		},
 	})
 	if err != nil {
-		bridgeLog.Warnf("send_reaction error: %v", err)
+		bridgeLog.Warnf("[%s] send_reaction error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1004, Message: "reaction failed"}}
 	}
 
@@ -321,11 +308,10 @@ func (s *Session) cmdDownloadMedia(cmd Command) Response {
 
 	data, err := s.client.Download(context.Background(), downloadable)
 	if err != nil {
-		bridgeLog.Warnf("download_media error: %v", err)
+		bridgeLog.Warnf("[%s] download_media error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1009, Message: "media download failed"}}
 	}
 
-	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return Response{Error: &ErrorInfo{Code: 1009, Message: fmt.Sprintf("failed to create directory: %v", err)}}
 	}
@@ -348,7 +334,7 @@ func (s *Session) cmdGetGroupInfo(cmd Command) Response {
 
 	info, err := s.client.GetGroupInfo(context.Background(), jid)
 	if err != nil {
-		bridgeLog.Warnf("get_group_info error: %v", err)
+		bridgeLog.Warnf("[%s] get_group_info error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1006, Message: "get group info failed"}}
 	}
 
@@ -401,7 +387,7 @@ func (s *Session) cmdSendChatPresence(cmd Command) Response {
 
 	err = s.client.SendChatPresence(context.Background(), to, presence, mediaPresence)
 	if err != nil {
-		bridgeLog.Warnf("send_chat_presence error: %v", err)
+		bridgeLog.Warnf("[%s] send_chat_presence error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to send chat presence"}}
 	}
 
@@ -435,7 +421,7 @@ func (s *Session) cmdMarkRead(cmd Command) Response {
 
 	err = s.client.MarkRead(context.Background(), ids, time.Now(), chat, sender)
 	if err != nil {
-		bridgeLog.Warnf("mark_read error: %v", err)
+		bridgeLog.Warnf("[%s] mark_read error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1008, Message: "failed to mark as read"}}
 	}
 
@@ -456,7 +442,7 @@ func (s *Session) cmdSetPresence(cmd Command) Response {
 	}
 
 	if err := s.client.SendPresence(context.Background(), presence); err != nil {
-		bridgeLog.Warnf("set_presence error: %v", err)
+		bridgeLog.Warnf("[%s] set_presence error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set presence"}}
 	}
 

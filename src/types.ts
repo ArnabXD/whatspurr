@@ -171,6 +171,7 @@ export type EventData =
 // ── Protocol (WS wire format) ────────────────────────────────────────────────
 export interface Command {
   id: string;
+  session?: string;
   method: string;
   params: Record<string, unknown>;
 }
@@ -183,11 +184,25 @@ export interface CommandResponse {
 
 export interface EventMessage {
   type: "event";
+  session?: string;
   event: EventType;
   data: unknown;
 }
 
 export type WireMessage = CommandResponse | EventMessage;
+
+// ── Session Management ──────────────────────────────────────────────────────
+export interface SessionEventData {
+  session: string;
+  event: EventType;
+  data: unknown;
+}
+
+export interface SessionInfo {
+  name: string;
+  jid: string;
+  connected: boolean;
+}
 
 // ── Context Narrowing ────────────────────────────────────────────────────────
 

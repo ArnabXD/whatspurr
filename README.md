@@ -59,6 +59,55 @@ process.on("SIGINT", async () => {
 });
 ```
 
+## Multi-Session
+
+Run multiple WhatsApp accounts from a single process using `WhatsAppManager`. All sessions share one Go bridge process and one SQLite database.
+
+```ts
+import { WhatsAppManager } from "@arnabxd/whatspurr";
+
+const mgr = new WhatsAppManager({ sessionDir: "./session" });
+await mgr.start();
+
+// Connect a long-lived listener bot
+const bot = await mgr.connect("support-bot");
+bot.on("qr", (ctx) => console.log("Scan QR:", ctx.qr.code));
+bot.on("message:text", async (ctx) => {
+  await ctx.reply("Got it!");
+});
+await bot.start(); // registers handlers first, then connects
+
+// Connect a sender, do work, disconnect (auth data is preserved)
+const sender = await mgr.connect("bulk-sender");
+await sender.start();
+await sender.api.sendMessage("123@s.whatsapp.net", "Hello!");
+await mgr.disconnect("bulk-sender"); // frees resources, can reconnect later
+
+// List all sessions in the database
+const sessions = await mgr.list();
+// [{ name: "support-bot", jid: "...", connected: true },
+//  { name: "bulk-sender", jid: "...", connected: false }]
+
+// Reconnect later without QR (session data is in the DB)
+const sender2 = await mgr.connect("bulk-sender");
+await sender2.start();
+
+// Remove a session entirely (logout + delete from DB)
+await mgr.destroy("bulk-sender");
+
+// Shutdown everything
+await mgr.stop();
+```
+
+### Session lifecycle
+
+| Method | What happens | Auth data | Can reconnect? |
+|---|---|---|---|
+| `connect(name)` | Prepares a WhatsApp instance with bridge listeners | - | - |
+| `wa.start()` | Sends `connect_session`, starts whatsmeow goroutine | Preserved | - |
+| `disconnect(name)` | Disconnects from WhatsApp, stops goroutine | Preserved | Yes (skip QR) |
+| `destroy(name)` | Logout from WhatsApp, delete device from DB | Deleted | No (needs re-QR) |
+
 ## Configuration
 
 ```ts
@@ -76,7 +125,7 @@ const wa = new WhatsApp({
 
 ## Architecture
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams covering the startup flow, message lifecycle, middleware engine, WebSocket protocol, and security model.
+See the [Architecture guide](https://whatspurr.arnabxd.me/guide/architecture) for detailed diagrams covering the startup flow, message lifecycle, middleware engine, WebSocket protocol, and security model.
 
 ## License
 
