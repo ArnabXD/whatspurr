@@ -60,6 +60,10 @@ process.on("SIGINT", async () => {
 });
 ```
 
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed diagrams covering the startup flow, message lifecycle, middleware engine, WebSocket protocol, and security model.
+
 ## License
 
 MIT
