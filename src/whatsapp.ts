@@ -110,12 +110,14 @@ export class WhatsApp extends Composer<Context> {
   }
 
   private async handleEvent(eventData: EventData): Promise<void> {
+    if (!this.started) return;
     const ctx = new Context(eventData, this.api);
     const mw = this.middleware();
 
     try {
       await mw(ctx, async () => {});
     } catch (err) {
+      if (!this.started) return; // bridge shut down mid-handler; error is expected
       this.onError(err instanceof Error ? err : new Error(String(err)), ctx);
     }
   }

@@ -79,12 +79,12 @@ sequenceDiagram
 
     Bot->>Mgr: mgr.start()
     Mgr->>Bridge: bridge.start()
-    Bridge->>Go: spawn(binary, args)
+    Bridge->>Go: spawn(binary, args, env: BRIDGE_TOKEN)
     Go->>Go: Init shared SQLite store
     Go->>SM: NewSessionManager(container)
     Go->>Go: Start WS server on 127.0.0.1:random
     Go-->>Bridge: stdout: "ready 127.0.0.1:PORT"
-    Bridge->>Go: WebSocket connect
+    Bridge->>Go: WebSocket connect (subprotocol auth)
     Note over Go: No sessions started yet
 
     Bot->>Mgr: mgr.connect("bot1")
@@ -199,9 +199,9 @@ Events: `qr`, `connected`, `disconnected`, `message`, `message_reaction`, `recei
 
 - **Localhost only** — WS server binds to `127.0.0.1`, never exposed to the network
 - **Random port** — OS assigns an ephemeral port, communicated via stdout
-- **Auth token** — 64-byte random token required for WS connection
+- **Auth token** — 32-byte random token passed via `BRIDGE_TOKEN` env var (not a CLI flag); authenticated via `Sec-WebSocket-Protocol` subprotocol header, verified with constant-time compare
 - **Single WS connection** — only one client can connect at a time
 - **Bounded concurrency** — max 64 concurrent command handlers
-- **Size limits** — 140 MB WS read limit, per-type media caps (16 MB images, 100 MB documents)
-- **Input validation** — JID parsing, base64 pre-checks, DB name path traversal prevention
+- **Size limits** — 135 MB WS read limit, per-type media caps (16 MB images, 100 MB documents)
+- **Input validation** — JID parsing, base64 pre-checks, DB name path traversal prevention, `download_media` path confined to configured download directory
 - **Opaque errors** — generic errors to the client, detailed logs server-side only

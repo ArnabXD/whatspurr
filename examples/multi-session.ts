@@ -50,7 +50,11 @@ for (const [name, wa] of [
 ] as const) {
   wa.on("message:text", async (ctx) => {
     console.log(`[${name}] ${ctx.from}: ${ctx.text}`);
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 2000));
+    await ctx.markRead();
+    await new Promise((r) => setTimeout(r, 1000));
+    await ctx.sendTyping();
+    await new Promise((r) => setTimeout(r, 2000));
     await ctx.reply(`Echo: ${ctx.text}`);
   });
 }

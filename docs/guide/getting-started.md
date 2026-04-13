@@ -62,13 +62,19 @@ process.on("SIGINT", async () => {
 
 whatspurr runs a Go sidecar process that handles the WhatsApp Web protocol via [whatsmeow](https://github.com/tulir/whatsmeow). Your TypeScript code communicates with it over a local WebSocket connection.
 
-```
-┌──────────────┐   WebSocket (localhost)   ┌──────────────┐
-│  Your TS Bot │ ◄──────────────────────►  │  Go Sidecar  │
-│              │    JSON commands/events   │  (whatsmeow) │
-└──────────────┘                           └──────────────┘
-                                                  │
-                                           WhatsApp Servers
+```mermaid
+flowchart LR
+    TS("🤖 Your TS Bot")
+    Go("⚙️ Go Sidecar\nwhatsmeow")
+    WA("💬 WhatsApp\nServers")
+
+    TS -->|"JSON commands"| Go
+    Go -->|"events"| TS
+    Go <-->|"WhatsApp Web protocol"| WA
+
+    style TS  fill:#3178c6,stroke:#235d9f,color:#fff,rx:8
+    style Go  fill:#00ADD8,stroke:#0090b8,color:#fff,rx:8
+    style WA  fill:#25d366,stroke:#128c7e,color:#fff,rx:8
 ```
 
 - The Go binary is started and managed automatically

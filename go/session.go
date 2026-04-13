@@ -20,7 +20,7 @@ const (
 	maxConcurrentCommands = 64
 	wsReadTimeout         = 5 * time.Minute
 	wsWriteTimeout        = 30 * time.Second
-	wsReadLimit           = 140 * 1024 * 1024
+	wsReadLimit           = 135 * 1024 * 1024 // max doc (100MB) * ~1.34 base64 overhead
 )
 
 // Command is a request from TS to Go.

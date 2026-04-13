@@ -124,13 +124,15 @@ export class Bridge extends EventEmitter {
     const autoPresence = this.config.autoPresence !== false; // default true
     const subscribeOutgoing = this.config.subscribeOutgoing === true; // default false
 
+    const downloadDir = this.config.downloadDir ?? "./downloads";
+
     const args = [
-      "--token",
-      this.authToken,
       "--session-dir",
       sessionDir,
       "--db-name",
       dbName,
+      "--download-dir",
+      downloadDir,
       "--log-level",
       logLevel,
       ...(autoPresence ? ["--auto-presence"] : []),
@@ -139,6 +141,7 @@ export class Bridge extends EventEmitter {
 
     this.process = spawn(binaryPath, args, {
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, BRIDGE_TOKEN: this.authToken },
     });
 
     this.process.on("exit", (code, signal) => {
@@ -198,8 +201,8 @@ export class Bridge extends EventEmitter {
 
   private connectWs(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const url = `ws://${this.listenAddr}/?token=${this.authToken}`;
-      this.ws = new WebSocket(url);
+      const url = `ws://${this.listenAddr}/`;
+      this.ws = new WebSocket(url, [`bridge-auth-${this.authToken}`]);
 
       this.ws.onopen = () => {
         this._ready = true;
