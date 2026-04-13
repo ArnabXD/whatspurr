@@ -62,7 +62,9 @@ jobs:
       - run: bun install
 
       - name: Generate changelog
-        run: bunx changelogen --output RELEASE_NOTES.md
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${{ github.ref_name }}^")
+          bunx changelogen --from "$PREV_TAG" --to "${{ github.ref_name }}" --output RELEASE_NOTES.md
 
       - uses: actions/download-artifact@v8
         with:
