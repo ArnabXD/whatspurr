@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"flag"
 	"fmt"
 	"log"
@@ -27,22 +28,24 @@ var (
 	authToken         string
 	sessionDir        string
 	dbName            string
+	downloadDir       string
 	logLevel          string
 	autoPresence      bool
 	subscribeOutgoing bool
 )
 
 func main() {
-	flag.StringVar(&authToken, "token", "", "Auth token for WebSocket connections (required)")
 	flag.StringVar(&sessionDir, "session-dir", "./session", "Session data directory")
 	flag.StringVar(&dbName, "db-name", "whatspurr.db", "SQLite database filename")
+	flag.StringVar(&downloadDir, "download-dir", "./downloads", "Directory for downloaded media files")
 	flag.StringVar(&logLevel, "log-level", "info", "Log level: debug, info, warn, error")
 	flag.BoolVar(&autoPresence, "auto-presence", false, "Send available presence on connect")
 	flag.BoolVar(&subscribeOutgoing, "subscribe-outgoing", false, "Forward outgoing (sent by us) messages to TS")
 	flag.Parse()
 
+	authToken = os.Getenv("BRIDGE_TOKEN")
 	if authToken == "" {
-		log.Fatal("--token flag is required")
+		log.Fatal("BRIDGE_TOKEN environment variable is required")
 	}
 
 	bridgeLog = waLog.Stdout("Bridge", logLevel, true)
@@ -53,6 +56,10 @@ func main() {
 
 	if err := os.MkdirAll(sessionDir, 0700); err != nil {
 		log.Fatalf("Failed to create session dir: %v", err)
+	}
+
+	if err := os.MkdirAll(downloadDir, 0750); err != nil {
+		log.Fatalf("Failed to create download dir: %v", err)
 	}
 
 	// Init SQLite store — shared across all sessions
@@ -75,8 +82,11 @@ func main() {
 
 	// HTTP server for WebSocket upgrade
 	mux := http.NewServeMux()
+	expectedProto := "bridge-auth-" + authToken
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("token") != authToken {
+		// Authenticate via WebSocket subprotocol (constant-time to avoid timing leaks)
+		proto := r.Header.Get("Sec-WebSocket-Protocol")
+		if subtle.ConstantTimeCompare([]byte(proto), []byte(expectedProto)) != 1 {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -89,7 +99,9 @@ func main() {
 			return
 		}
 
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			Subprotocols: []string{expectedProto},
+		})
 		if err != nil {
 			manager.connMu.Unlock()
 			bridgeLog.Errorf("WebSocket accept error: %v", err)

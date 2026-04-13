@@ -259,6 +259,19 @@ func (s *Session) cmdDownloadMedia(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'path' parameter"}}
 	}
 
+	// Prevent path traversal: destPath must resolve within the allowed download directory
+	absBase, err := filepath.Abs(downloadDir)
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1009, Message: "server misconfiguration: invalid download dir"}}
+	}
+	absDest, err := filepath.Abs(destPath)
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "invalid path"}}
+	}
+	if !strings.HasPrefix(absDest+string(filepath.Separator), absBase+string(filepath.Separator)) {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "path outside allowed download directory"}}
+	}
+
 	parts := strings.SplitN(ref, ":", 2)
 	if len(parts) != 2 {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "invalid mediaRef format"}}
