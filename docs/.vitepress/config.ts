@@ -64,7 +64,7 @@ export default withMermaid(
 
       footer: {
         message: "Released under the GPL-3.0 License.",
-        copyright: "Copyright 2025 ArnabXD",
+        copyright: `Copyright ${new Date().getFullYear()} ArnabXD`,
       },
 
       search: {
