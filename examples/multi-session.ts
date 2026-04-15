@@ -57,6 +57,17 @@ for (const [name, wa] of [
     await new Promise((r) => setTimeout(r, 2000));
     await ctx.reply(`Echo: ${ctx.text}`);
   });
+
+  wa.on("message:image", async (ctx) => {
+    console.log(`[${name}] ${ctx.from}: [image]`);
+    await ctx.markRead();
+    const { path } = await ctx.downloadMedia();
+    console.log(`[${name}] Downloaded image to ${path}`);
+    const data = await Bun.file(path).bytes();
+    await ctx.replyWithImage(data, { mimetype: ctx.message?.mimetype ?? "image/jpeg" });
+    await Bun.file(path).delete();
+    console.log(`[${name}] Deleted local file ${path}`);
+  });
 }
 
 console.log("Both accounts connected. Echoing messages with quoted replies...");
