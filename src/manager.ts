@@ -84,6 +84,9 @@ export class WhatsAppManager {
 
   /** Stop all sessions and kill the Go bridge process. */
   async stop(): Promise<void> {
+    for (const wa of this.clients.values()) {
+      await wa.stop();
+    }
     this.clients.clear();
     await this.bridge.stop();
     this.started = false;
