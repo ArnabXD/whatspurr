@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { arch, platform } from "node:os";
 import { dirname, join } from "node:path";
-import pkg from "../package.json";
+import pkg from "../package.json" with { type: "json" };
 import type { Command, CommandResponse, EventMessage, SessionEventData, WhatsAppConfig, WireMessage } from "./types.ts";
 
 const DEFAULT_SESSION_DIR = "./session";
