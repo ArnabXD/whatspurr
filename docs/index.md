@@ -20,7 +20,7 @@ hero:
       link: https://github.com/ArnabXD/whatspurr
 
 features:
-  - icon: "\U0001F41E"
+  - icon: "\U0001F41D"
     title: grammY-style API
     details: Middleware, composers, context objects, filter queries — if you've built Telegram bots with <a href="https://grammy.dev" target="_blank">grammY</a>, you already know this.
   - icon: "\U0001F510"
@@ -29,13 +29,13 @@ features:
   - icon: "\U0001F9E9"
     title: Fully Typed
     details: Context narrowing gives your handlers exact types. <code>wa.on("message:text")</code> guarantees <code>ctx.text</code> is a string.
-  - icon: "\U0001F680"
-    title: Bun & Node
-    details: Works on Bun and Node.js 21+. No runtime-specific APIs in the library — use whichever you prefer.
+  - icon: "\U0001F504"
+    title: Always Up to Date
+    details: Automated daily sync with <a href="https://github.com/tulir/whatsmeow" target="_blank">whatsmeow</a> upstream — protocol changes land fast, so your bots stay connected.
   - icon: "\U0001F465"
     title: Multi-Account
     details: Run multiple WhatsApp sessions from a single process. Connect on demand, disconnect to free resources, reconnect without re-scanning QR.
-  - icon: "\U0001F527"
+  - icon: "\U0001F9F1"
     title: Composable
     details: Split handlers into modules with Composer, scope error boundaries, nest middleware — scale from echo bot to production.
 ---
