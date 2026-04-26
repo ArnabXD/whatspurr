@@ -25,15 +25,68 @@ wa.command("doc", async (ctx) => {
 
 ```ts
 interface MediaSendOptions {
-  caption?: string;   // Caption text (image, video, document)
-  filename?: string;  // Filename (document)
-  mimetype?: string;  // MIME type (defaults: image/jpeg, video/mp4, audio/ogg)
+  caption?: string;    // Caption text (image, video, document)
+  filename?: string;   // Filename (document)
+  mimetype?: string;   // MIME type (defaults: image/jpeg, video/mp4, audio/ogg)
+  viewOnce?: boolean;  // Send as view-once (image, video)
+  width?: number;      // Width in pixels (image, video)
+  height?: number;     // Height in pixels (image, video)
 }
 ```
 
 ::: tip
 All media methods come in `reply` and `send` variants — see [Messaging](/guide/messaging) for the difference.
 :::
+
+## View-Once Media
+
+Send images or videos as view-once — the recipient can only view them once before they disappear:
+
+```ts
+wa.command("secret", async (ctx) => {
+  const image = readFileSync("./secret.jpg");
+  await ctx.replyWithImage(image, {
+    viewOnce: true,
+    caption: "This disappears after viewing!",
+  });
+});
+```
+
+### Detecting Received View-Once Messages
+
+Incoming view-once media has `viewOnce: true` on the message object:
+
+```ts
+wa.on("message:image", async (ctx) => {
+  if (ctx.message.viewOnce) {
+    console.log("Received a view-once image");
+  }
+});
+```
+
+## Media Dimensions
+
+Image and video dimensions (width/height) are **auto-detected** by the Go sidecar when sending — you don't need to pass them manually.
+
+- **Images**: detected via Go's stdlib (JPEG, PNG, GIF, WebP)
+- **Videos**: detected via `ffprobe` if installed, silently skipped otherwise
+
+You can still override with explicit values:
+
+```ts
+await ctx.replyWithImage(data, { width: 1080, height: 1920 });
+```
+
+Received image/video messages include dimensions when the sender provided them:
+
+```ts
+wa.on("message:image", async (ctx) => {
+  const { width, height } = ctx.message;
+  if (width && height) {
+    console.log(`Image is ${width}x${height}`);
+  }
+});
+```
 
 ## Downloading Media
 
@@ -86,5 +139,10 @@ await wa.api.sendImage("1234567890@s.whatsapp.net", imageBuffer, {
 await wa.api.sendDocument("1234567890@s.whatsapp.net", pdfBuffer, {
   filename: "report.pdf",
   mimetype: "application/pdf",
+});
+
+// View-once image
+await wa.api.sendImage("1234567890@s.whatsapp.net", imageBuffer, {
+  viewOnce: true,
 });
 ```
