@@ -67,6 +67,9 @@ export class Api {
       data: Buffer.from(data).toString("base64"),
       mimetype: options.mimetype ?? "image/jpeg",
       caption: options.caption,
+      viewOnce: options.viewOnce,
+      width: options.width,
+      height: options.height,
       ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };
@@ -78,6 +81,9 @@ export class Api {
       data: Buffer.from(data).toString("base64"),
       mimetype: options.mimetype ?? "video/mp4",
       caption: options.caption,
+      viewOnce: options.viewOnce,
+      width: options.width,
+      height: options.height,
       ...this.quoteParams(options),
     });
     return { messageId: result.messageId as string };

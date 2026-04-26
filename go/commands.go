@@ -134,7 +134,34 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 	caption, _ := cmd.Params["caption"].(string)
 	mimetype, _ := cmd.Params["mimetype"].(string)
 	filename, _ := cmd.Params["filename"].(string)
+	viewOnce, _ := cmd.Params["viewOnce"].(bool)
 	contextInfo := s.buildContextInfo(cmd.Params)
+
+	// Parse optional width/height (JSON numbers arrive as float64)
+	var width, height *uint32
+	if w, ok := cmd.Params["width"].(float64); ok && w > 0 {
+		v := uint32(w)
+		width = &v
+	}
+	if h, ok := cmd.Params["height"].(float64); ok && h > 0 {
+		v := uint32(h)
+		height = &v
+	}
+
+	// Auto-detect dimensions when not explicitly provided
+	if width == nil && height == nil {
+		var w, h uint32
+		switch mediaType {
+		case "image":
+			w, h = detectImageDimensions(data)
+		case "video":
+			w, h = detectVideoDimensions(data)
+		}
+		if w > 0 && h > 0 {
+			width = &w
+			height = &h
+		}
+	}
 
 	client := s.client
 	uploaded, err := client.Upload(context.Background(), data, mediaUploadType[mediaType])
@@ -148,33 +175,41 @@ func (s *Session) cmdSendMedia(cmd Command, mediaType string) Response {
 
 	switch mediaType {
 	case "image":
-		msg = &waE2E.Message{
-			ImageMessage: &waE2E.ImageMessage{
-				Caption:       proto.String(caption),
-				Mimetype:      proto.String(mimetype),
-				URL:           proto.String(uploaded.URL),
-				DirectPath:    proto.String(uploaded.DirectPath),
-				MediaKey:      uploaded.MediaKey,
-				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    fileLen,
-				ContextInfo:   contextInfo,
-			},
+		im := &waE2E.ImageMessage{
+			Caption:       proto.String(caption),
+			Mimetype:      proto.String(mimetype),
+			URL:           proto.String(uploaded.URL),
+			DirectPath:    proto.String(uploaded.DirectPath),
+			MediaKey:      uploaded.MediaKey,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    fileLen,
+			ContextInfo:   contextInfo,
+			Width:         width,
+			Height:        height,
 		}
+		if viewOnce {
+			im.ViewOnce = proto.Bool(true)
+		}
+		msg = &waE2E.Message{ImageMessage: im}
 	case "video":
-		msg = &waE2E.Message{
-			VideoMessage: &waE2E.VideoMessage{
-				Caption:       proto.String(caption),
-				Mimetype:      proto.String(mimetype),
-				URL:           proto.String(uploaded.URL),
-				DirectPath:    proto.String(uploaded.DirectPath),
-				MediaKey:      uploaded.MediaKey,
-				FileEncSHA256: uploaded.FileEncSHA256,
-				FileSHA256:    uploaded.FileSHA256,
-				FileLength:    fileLen,
-				ContextInfo:   contextInfo,
-			},
+		vm := &waE2E.VideoMessage{
+			Caption:       proto.String(caption),
+			Mimetype:      proto.String(mimetype),
+			URL:           proto.String(uploaded.URL),
+			DirectPath:    proto.String(uploaded.DirectPath),
+			MediaKey:      uploaded.MediaKey,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    fileLen,
+			ContextInfo:   contextInfo,
+			Width:         width,
+			Height:        height,
 		}
+		if viewOnce {
+			vm.ViewOnce = proto.Bool(true)
+		}
+		msg = &waE2E.Message{VideoMessage: vm}
 	case "audio":
 		msg = &waE2E.Message{
 			AudioMessage: &waE2E.AudioMessage{
