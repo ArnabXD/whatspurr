@@ -15,13 +15,21 @@ bun run typecheck      # type-check without emit
 bun run lint           # biome check .
 bun run lint:fix       # biome check --fix .
 bun run format         # biome format --write .
-bun test               # run all tests
+bun test               # run all tests (none yet)
 bun test <file>        # run a single test file
 
 # Go sidecar
-bun run build:go                                      # build for local dev → bin/bridge
-cd go && go build -o ../bin/bridge                    # raw build
-GOOS=linux GOARCH=amd64 go build -o ../bin/bridge-linux-amd64  # cross-compile
+bun run build:go       # build for local dev → bin/bridge
+bun run release:go     # cross-compile for all platforms
+
+# Docs (VitePress)
+bun run docs:dev       # local docs dev server
+bun run docs:build     # build static docs
+bun run docs:preview   # preview built docs
+
+# Release
+bun run changelog      # generate changelog
+bun run release        # changelog + version bump
 ```
 
 ## Architecture
@@ -29,7 +37,7 @@ GOOS=linux GOARCH=amd64 go build -o ../bin/bridge-linux-amd64  # cross-compile
 - **TypeScript library** (`src/`): grammY-style API with middleware, composers, context objects
 - **Go sidecar** (`go/`): Thin bridge that runs whatsmeow and communicates via WebSocket over localhost TCP
 - **Transport**: JSON messages over WebSocket on `127.0.0.1` (random port, single-client mode, auth token)
-- **Distribution**: Contributors build Go locally. End users get prebuilt binaries via postinstall.
+- **Distribution**: Contributors build Go locally. End users get prebuilt binaries auto-downloaded on first `wa.start()` (handled in `bridge.ts`).
 
 ## Bridge Protocol
 
@@ -75,7 +83,6 @@ go/               Go sidecar source
   commands.go     JSON commands -> whatsmeow calls (per-session)
 scripts/          Build & distribution scripts
   build-go.ts     Local dev build
-  postinstall.ts  Download prebuilt binary for end users
   release.ts      Cross-compile for all platforms
 bin/              Compiled Go binary (gitignored)
 ```
