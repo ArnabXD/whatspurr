@@ -51,6 +51,12 @@ export interface MediaMessage extends MessageInfo {
   filename?: string;
   /** Opaque ref used to download media via bridge */
   mediaRef: string;
+  /** Whether this is a view-once media message */
+  viewOnce?: boolean;
+  /** Media width in pixels (images and videos) */
+  width?: number;
+  /** Media height in pixels (images and videos) */
+  height?: number;
 }
 
 export interface ContactMessage extends MessageInfo {
@@ -284,4 +290,10 @@ export interface MediaSendOptions extends QuoteOptions {
   caption?: string;
   filename?: string;
   mimetype?: string;
+  /** Send as a view-once media message (image/video only) */
+  viewOnce?: boolean;
+  /** Media width in pixels (image/video only) */
+  width?: number;
+  /** Media height in pixels (image/video only) */
+  height?: number;
 }

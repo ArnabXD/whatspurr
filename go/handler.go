@@ -152,6 +152,7 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 	}
 
 	msg := v.Message
+	isViewOnce := v.IsViewOnce
 
 	base := map[string]interface{}{
 		"id":        v.Info.ID,
@@ -190,6 +191,15 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["caption"] = im.GetCaption()
 		base["mimetype"] = im.GetMimetype()
 		base["mediaRef"] = encodeMediaRef("image", im)
+		if isViewOnce || im.GetViewOnce() {
+			base["viewOnce"] = true
+		}
+		if im.GetWidth() > 0 {
+			base["width"] = im.GetWidth()
+		}
+		if im.GetHeight() > 0 {
+			base["height"] = im.GetHeight()
+		}
 
 	case msg.GetVideoMessage() != nil:
 		vm := msg.GetVideoMessage()
@@ -197,6 +207,15 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["caption"] = vm.GetCaption()
 		base["mimetype"] = vm.GetMimetype()
 		base["mediaRef"] = encodeMediaRef("video", vm)
+		if isViewOnce || vm.GetViewOnce() {
+			base["viewOnce"] = true
+		}
+		if vm.GetWidth() > 0 {
+			base["width"] = vm.GetWidth()
+		}
+		if vm.GetHeight() > 0 {
+			base["height"] = vm.GetHeight()
+		}
 
 	case msg.GetAudioMessage() != nil:
 		am := msg.GetAudioMessage()
