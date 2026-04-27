@@ -176,6 +176,60 @@ export interface GroupUpdateEvent {
   updatedBy: JID;
 }
 
+// ── Contact / User Info ─────────────────────────────────────────────────────
+
+export interface IsOnWhatsAppResult {
+  /** The original query phone number */
+  query: string;
+  /** The canonical WhatsApp JID */
+  jid: JID;
+  /** Whether the phone number is registered on WhatsApp */
+  isIn: boolean;
+  /** Verified business name, if the number is a business */
+  verifiedName?: string;
+}
+
+export interface UserInfo {
+  /** User's "About" status text */
+  status: string;
+  /** Profile picture ID (use with getProfilePicture to get URL) */
+  pictureId: string;
+  /** List of device JIDs linked to this account */
+  devices: JID[];
+  /** Verified business name, if applicable */
+  verifiedName?: string;
+}
+
+export interface ProfilePictureInfo {
+  /** Direct URL to download the profile picture */
+  url: string;
+  /** Picture ID (matches UserInfo.pictureId) */
+  id: string;
+  /** Picture type: "image" (full res) or "preview" (thumbnail) */
+  type: string;
+}
+
+export interface BusinessCategory {
+  id: string;
+  name: string;
+}
+
+export interface BusinessHoursConfig {
+  dayOfWeek: string;
+  mode: string;
+  openTime: string;
+  closeTime: string;
+}
+
+export interface BusinessProfile {
+  jid: JID;
+  address: string;
+  email: string;
+  categories: BusinessCategory[];
+  businessHours: BusinessHoursConfig[];
+  timezone: string;
+}
+
 // ── Status / Stories ────────────────────────────────────────────────────────
 export type StatusPrivacyType = "contacts" | "blacklist" | "whitelist";
 

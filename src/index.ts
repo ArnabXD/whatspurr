@@ -10,6 +10,10 @@ export { filters } from "./filters.ts";
 export { WhatsAppManager } from "./manager.ts";
 // Types
 export type {
+  // Contact / User Info
+  BusinessCategory,
+  BusinessHoursConfig,
+  BusinessProfile,
   ConnectedEvent,
   ContactContent,
   ContactMessage,
@@ -25,6 +29,7 @@ export type {
   GroupLeaveEvent,
   GroupParticipant,
   GroupUpdateEvent,
+  IsOnWhatsAppResult,
   // JID
   JID,
   LocationContent,
@@ -41,6 +46,7 @@ export type {
   NarrowContext,
   NextFn,
   PresenceEvent,
+  ProfilePictureInfo,
   QrEvent,
   // Quoted message
   QuotedContactMessage,
@@ -63,6 +69,7 @@ export type {
   StatusPrivacyType,
   TextContent,
   TextMessage,
+  UserInfo,
   // Config
   WhatsAppConfig,
 } from "./types.ts";

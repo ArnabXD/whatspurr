@@ -1,5 +1,6 @@
 import type { Api } from "./api.ts";
 import type {
+  BusinessProfile,
   ConnectedEvent,
   DisconnectedEvent,
   DownloadResult,
@@ -7,10 +8,12 @@ import type {
   GroupJoinEvent,
   GroupLeaveEvent,
   GroupUpdateEvent,
+  IsOnWhatsAppResult,
   JID,
   MediaSendOptions,
   Message,
   PresenceEvent,
+  ProfilePictureInfo,
   QrEvent,
   QuotedMessage,
   QuoteOptions,
@@ -18,6 +21,7 @@ import type {
   ReceiptEvent,
   SendOptions,
   SendResult,
+  UserInfo,
 } from "./types.ts";
 
 export class Context {
@@ -269,5 +273,43 @@ export class Context {
     const chat = this.chat;
     if (!chat) throw new Error("No chat to delete message in");
     return this.api.deleteMessage(chat, messageId);
+  }
+
+  // ── Contact / User Info ─────────────────────────────────────────────────
+
+  /** Check if phone numbers are registered on WhatsApp */
+  async isOnWhatsApp(phones: string[]): Promise<IsOnWhatsAppResult[]> {
+    return this.api.isOnWhatsApp(phones);
+  }
+
+  /** Get user info for the message sender (or specified JIDs) */
+  async getUserInfo(jids?: JID[]): Promise<Record<JID, UserInfo>> {
+    const targets = jids ?? (this.from ? [this.from] : []);
+    if (targets.length === 0) throw new Error("No JIDs to get info for");
+    return this.api.getUserInfo(targets);
+  }
+
+  /** Get profile picture for the current chat (or specified JID) */
+  async getProfilePicture(
+    jid?: JID,
+    options: { preview?: boolean; existingId?: string } = {},
+  ): Promise<ProfilePictureInfo | null> {
+    const target = jid ?? this.chat;
+    if (!target) throw new Error("No JID to get profile picture for");
+    return this.api.getProfilePicture(target, options);
+  }
+
+  /** Subscribe to presence updates for the message sender (or specified JID) */
+  async subscribePresence(jid?: JID): Promise<void> {
+    const target = jid ?? this.from;
+    if (!target) throw new Error("No JID to subscribe presence for");
+    return this.api.subscribePresence(target);
+  }
+
+  /** Get business profile for the message sender (or specified JID) */
+  async getBusinessProfile(jid?: JID): Promise<BusinessProfile | null> {
+    const target = jid ?? this.from;
+    if (!target) throw new Error("No JID to get business profile for");
+    return this.api.getBusinessProfile(target);
   }
 }
