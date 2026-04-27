@@ -12,6 +12,7 @@ import type {
   Message,
   PresenceEvent,
   QrEvent,
+  QuotedMessage,
   QuoteOptions,
   ReactionEvent,
   ReceiptEvent,
@@ -77,6 +78,16 @@ export class Context {
   /** Whether this message was sent by us (outgoing) */
   get isFromMe(): boolean {
     return this.message?.isFromMe ?? false;
+  }
+
+  /** Whether this message is a reply to another message */
+  get isReply(): boolean {
+    return this.message?.quotedMessage != null;
+  }
+
+  /** The quoted message info if this message is a reply, undefined otherwise */
+  get quotedMessage(): QuotedMessage | undefined {
+    return this.message?.quotedMessage;
   }
 
   /** QR event data (only on "qr" events) */

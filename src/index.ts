@@ -11,6 +11,7 @@ export { WhatsAppManager } from "./manager.ts";
 // Types
 export type {
   ConnectedEvent,
+  ContactContent,
   ContactMessage,
   DisconnectedEvent,
   DownloadResult,
@@ -26,7 +27,9 @@ export type {
   GroupUpdateEvent,
   // JID
   JID,
+  LocationContent,
   LocationMessage,
+  MediaContent,
   MediaMessage,
   MediaSendOptions,
   Message,
@@ -39,6 +42,14 @@ export type {
   NextFn,
   PresenceEvent,
   QrEvent,
+  // Quoted message
+  QuotedContactMessage,
+  QuotedLocationMessage,
+  QuotedMediaMessage,
+  QuotedMessage,
+  QuotedMessageBase,
+  QuotedTextMessage,
+  QuotedUnknownMessage,
   // Quote options
   QuoteOptions,
   ReactionEvent,
@@ -47,6 +58,7 @@ export type {
   SendOptions,
   SendResult,
   SessionInfo,
+  TextContent,
   TextMessage,
   // Config
   WhatsAppConfig,
