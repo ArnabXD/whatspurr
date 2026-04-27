@@ -176,6 +176,15 @@ export interface GroupUpdateEvent {
   updatedBy: JID;
 }
 
+// ── Status / Stories ────────────────────────────────────────────────────────
+export type StatusPrivacyType = "contacts" | "blacklist" | "whitelist";
+
+export interface StatusPrivacy {
+  type: StatusPrivacyType;
+  list: JID[];
+  isDefault: boolean;
+}
+
 // ── Events ───────────────────────────────────────────────────────────────────
 export type EventType =
   | "qr"

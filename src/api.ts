@@ -9,7 +9,10 @@ import type {
   QuoteOptions,
   SendOptions,
   SendResult,
+  StatusPrivacy,
 } from "./types.ts";
+
+const STATUS_BROADCAST_JID: JID = "status@broadcast";
 
 const DEFAULT_DOWNLOAD_DIR = "./downloads";
 
@@ -138,5 +141,33 @@ export class Api {
 
   async setPresence(type: "available" | "unavailable"): Promise<void> {
     await this.send("set_presence", { type });
+  }
+
+  // ── Status / Stories ────────────────────────────────────────────────────
+
+  /** Set the "About" text status message */
+  async setStatusMessage(message: string): Promise<void> {
+    await this.send("set_status_message", { message });
+  }
+
+  /** Get status privacy settings (who can see your stories) */
+  async getStatusPrivacy(): Promise<StatusPrivacy[]> {
+    const result = await this.send("get_status_privacy");
+    return (result.privacy as StatusPrivacy[]) ?? [];
+  }
+
+  /** Post a text story to status */
+  async postTextStatus(text: string): Promise<SendResult> {
+    return this.sendMessage(STATUS_BROADCAST_JID, text);
+  }
+
+  /** Post an image story to status */
+  async postImageStatus(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    return this.sendImage(STATUS_BROADCAST_JID, data, options);
+  }
+
+  /** Post a video story to status */
+  async postVideoStatus(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    return this.sendVideo(STATUS_BROADCAST_JID, data, options);
   }
 }

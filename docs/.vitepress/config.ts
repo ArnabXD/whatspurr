@@ -38,6 +38,7 @@ export default withMermaid(
             { text: "Messaging", link: "/guide/messaging" },
             { text: "Media", link: "/guide/media" },
             { text: "Groups", link: "/guide/groups" },
+            { text: "Status & Stories", link: "/guide/status" },
           ],
         },
         {

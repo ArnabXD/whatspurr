@@ -58,6 +58,9 @@ export type {
   SendOptions,
   SendResult,
   SessionInfo,
+  // Status
+  StatusPrivacy,
+  StatusPrivacyType,
   TextContent,
   TextMessage,
   // Config

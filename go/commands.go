@@ -31,6 +31,8 @@ func (s *Session) buildCommandHandlers() map[string]commandHandler {
 		"send_chat_presence": s.cmdSendChatPresence,
 		"mark_read":          s.cmdMarkRead,
 		"set_presence":       s.cmdSetPresence,
+		"set_status_message": s.cmdSetStatusMessage,
+		"get_status_privacy": s.cmdGetStatusPrivacy,
 	}
 }
 
@@ -495,4 +497,41 @@ func (s *Session) cmdSetPresence(cmd Command) Response {
 	}
 
 	return Response{Result: map[string]interface{}{"ok": true}}
+}
+
+func (s *Session) cmdSetStatusMessage(cmd Command) Response {
+	msg, _ := cmd.Params["message"].(string)
+	if msg == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'message' parameter"}}
+	}
+
+	if err := s.client.SetStatusMessage(context.Background(), msg); err != nil {
+		bridgeLog.Warnf("[%s] set_status_message error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set status message"}}
+	}
+
+	return Response{Result: map[string]interface{}{"ok": true}}
+}
+
+func (s *Session) cmdGetStatusPrivacy(cmd Command) Response {
+	privacy, err := s.client.GetStatusPrivacy(context.Background())
+	if err != nil {
+		bridgeLog.Warnf("[%s] get_status_privacy error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to get status privacy"}}
+	}
+
+	entries := make([]map[string]interface{}, len(privacy))
+	for i, p := range privacy {
+		jids := make([]string, len(p.List))
+		for j, jid := range p.List {
+			jids[j] = jid.String()
+		}
+		entries[i] = map[string]interface{}{
+			"type":      string(p.Type),
+			"list":      jids,
+			"isDefault": p.IsDefault,
+		}
+	}
+
+	return Response{Result: map[string]interface{}{"privacy": entries}}
 }
