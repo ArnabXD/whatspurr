@@ -40,6 +40,12 @@ wa.on("message", async (ctx) => {
   console.log(`  Reply:  ${ctx.text ?? `[${ctx.message!.type}]`}\n`);
 
   await ctx.markRead();
+
+  // Echo back, quoting the same original message
+  await ctx.send(`Echo: ${ctx.text ?? `[${ctx.message!.type}]`}`, {
+    quotedMessageId: quoted.messageId,
+    quotedSender: quoted.sender,
+  });
 });
 
 // Reply to any "!quote" command with info about the quoted message
