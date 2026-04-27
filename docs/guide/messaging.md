@@ -16,6 +16,38 @@
 | `ctx.sendAudio(data, options?)` | No | Send audio |
 | `ctx.sendDocument(data, options?)` | No | Send a document |
 
+## Detecting Replies
+
+When an incoming message is a reply to another message, you can access the quoted message info:
+
+```ts
+wa.on("message", async (ctx) => {
+  if (ctx.isReply) {
+    const quoted = ctx.quotedMessage!;
+    console.log(`Reply to message ${quoted.messageId} from ${quoted.sender}`);
+
+    // Narrow by type
+    if (quoted.type === "text") {
+      console.log(`Quoted text: ${quoted.text}`);
+    } else if (quoted.type === "image") {
+      console.log(`Quoted image (${quoted.mimetype})`);
+    }
+  }
+});
+```
+
+The `quotedMessage` is a discriminated union on the `type` field:
+
+| Type | Interface | Fields |
+|------|-----------|--------|
+| `"text"` | `QuotedTextMessage` | `text` |
+| `"image"` `"video"` `"audio"` `"document"` `"sticker"` | `QuotedMediaMessage` | `mimetype`, `caption?`, `filename?` |
+| `"contact"` | `QuotedContactMessage` | `displayName` |
+| `"location"` | `QuotedLocationMessage` | `latitude`, `longitude` |
+| `undefined` | `QuotedUnknownMessage` | *(unrecognized message type)* |
+
+All quoted message types include `messageId` and `sender` (the JID of who sent the original message).
+
 ## Quoting a Specific Message
 
 By default, `ctx.reply*()` quotes the message that triggered the handler. You can quote any message by passing `quotedMessageId` explicitly:
