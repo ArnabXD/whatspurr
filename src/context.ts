@@ -256,4 +256,18 @@ export class Context {
     if (!chat || !msgId) throw new Error("No message to react to");
     return this.api.sendReaction(chat, msgId, emoji);
   }
+
+  /** Edit a previously sent message in the current chat */
+  async editMessage(messageId: string, newText: string): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to edit message in");
+    return this.api.editMessage(chat, messageId, newText);
+  }
+
+  /** Delete (revoke) a previously sent message in the current chat ("delete for everyone") */
+  async deleteMessage(messageId: string): Promise<SendResult> {
+    const chat = this.chat;
+    if (!chat) throw new Error("No chat to delete message in");
+    return this.api.deleteMessage(chat, messageId);
+  }
 }

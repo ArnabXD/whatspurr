@@ -143,6 +143,20 @@ export class Api {
     await this.send("set_presence", { type });
   }
 
+  // ── Edit / Delete ─────────────────────────────────────────────────────
+
+  /** Edit a previously sent text message */
+  async editMessage(chat: JID, messageId: string, newText: string): Promise<SendResult> {
+    const result = await this.send("edit_message", { chat, messageId, text: newText });
+    return { messageId: result.messageId as string };
+  }
+
+  /** Delete (revoke) a previously sent message ("delete for everyone") */
+  async deleteMessage(chat: JID, messageId: string): Promise<SendResult> {
+    const result = await this.send("delete_message", { chat, messageId });
+    return { messageId: result.messageId as string };
+  }
+
   // ── Status / Stories ────────────────────────────────────────────────────
 
   /** Set the "About" text status message */
