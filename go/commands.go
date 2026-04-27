@@ -33,6 +33,8 @@ func (s *Session) buildCommandHandlers() map[string]commandHandler {
 		"set_presence":       s.cmdSetPresence,
 		"set_status_message": s.cmdSetStatusMessage,
 		"get_status_privacy": s.cmdGetStatusPrivacy,
+		"edit_message":       s.cmdEditMessage,
+		"delete_message":     s.cmdDeleteMessage,
 	}
 }
 
@@ -534,4 +536,63 @@ func (s *Session) cmdGetStatusPrivacy(cmd Command) Response {
 	}
 
 	return Response{Result: map[string]interface{}{"privacy": entries}}
+}
+
+func (s *Session) cmdEditMessage(cmd Command) Response {
+	chat, err := s.parseJID(cmd.Params, "chat")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	messageId, _ := cmd.Params["messageId"].(string)
+	if messageId == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'messageId' parameter"}}
+	}
+
+	newText, _ := cmd.Params["text"].(string)
+	if newText == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'text' parameter"}}
+	}
+
+	newContent := &waE2E.Message{
+		Conversation: proto.String(newText),
+	}
+	editMsg := s.client.BuildEdit(chat, types.MessageID(messageId), newContent)
+
+	bridgeLog.Debugf("[%s] edit_message chat=%s id=%s", s.name, chat.String(), messageId)
+	resp, err := s.client.SendMessage(context.Background(), chat, editMsg)
+	if err != nil {
+		bridgeLog.Errorf("[%s] edit_message error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1004, Message: "edit failed"}}
+	}
+
+	return Response{Result: map[string]interface{}{
+		"messageId": resp.ID,
+	}}
+}
+
+func (s *Session) cmdDeleteMessage(cmd Command) Response {
+	chat, err := s.parseJID(cmd.Params, "chat")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	messageId, _ := cmd.Params["messageId"].(string)
+	if messageId == "" {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'messageId' parameter"}}
+	}
+
+	sender := s.client.Store.ID.ToNonAD()
+	revokeMsg := s.client.BuildRevoke(chat, sender, types.MessageID(messageId))
+
+	bridgeLog.Debugf("[%s] delete_message chat=%s id=%s", s.name, chat.String(), messageId)
+	resp, err := s.client.SendMessage(context.Background(), chat, revokeMsg)
+	if err != nil {
+		bridgeLog.Errorf("[%s] delete_message error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1004, Message: "delete failed"}}
+	}
+
+	return Response{Result: map[string]interface{}{
+		"messageId": resp.ID,
+	}}
 }
