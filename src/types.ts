@@ -29,6 +29,53 @@ export interface WhatsAppConfig {
 // ── Messages ─────────────────────────────────────────────────────────────────
 export type MessageType = "text" | "image" | "video" | "audio" | "document" | "sticker" | "contact" | "location";
 
+// ── Content shapes (shared by messages and quoted messages) ─────────────────
+export interface TextContent {
+  type: "text";
+  text: string;
+}
+
+export interface MediaContent {
+  type: "image" | "video" | "audio" | "document" | "sticker";
+  caption?: string;
+  mimetype: string;
+  filename?: string;
+}
+
+export interface ContactContent {
+  type: "contact";
+  displayName: string;
+}
+
+export interface LocationContent {
+  type: "location";
+  latitude: number;
+  longitude: number;
+}
+
+// ── Quoted messages ─────────────────────────────────────────────────────────
+export interface QuotedMessageBase {
+  messageId: string;
+  sender: JID;
+}
+
+export interface QuotedTextMessage extends QuotedMessageBase, TextContent {}
+export interface QuotedMediaMessage extends QuotedMessageBase, MediaContent {}
+export interface QuotedContactMessage extends QuotedMessageBase, ContactContent {}
+export interface QuotedLocationMessage extends QuotedMessageBase, LocationContent {}
+
+export interface QuotedUnknownMessage extends QuotedMessageBase {
+  type?: undefined;
+}
+
+export type QuotedMessage =
+  | QuotedTextMessage
+  | QuotedMediaMessage
+  | QuotedContactMessage
+  | QuotedLocationMessage
+  | QuotedUnknownMessage;
+
+// ── Messages ────────────────────────────────────────────────────────────────
 export interface MessageInfo {
   id: string;
   from: JID;
@@ -37,18 +84,13 @@ export interface MessageInfo {
   timestamp: number;
   isGroup: boolean;
   isFromMe: boolean;
+  /** Present when this message is a reply to another message */
+  quotedMessage?: QuotedMessage;
 }
 
-export interface TextMessage extends MessageInfo {
-  type: "text";
-  text: string;
-}
+export interface TextMessage extends MessageInfo, TextContent {}
 
-export interface MediaMessage extends MessageInfo {
-  type: "image" | "video" | "audio" | "document" | "sticker";
-  caption?: string;
-  mimetype: string;
-  filename?: string;
+export interface MediaMessage extends MessageInfo, MediaContent {
   /** Opaque ref used to download media via bridge */
   mediaRef: string;
   /** Whether this is a view-once media message */
@@ -59,16 +101,11 @@ export interface MediaMessage extends MessageInfo {
   height?: number;
 }
 
-export interface ContactMessage extends MessageInfo {
-  type: "contact";
-  displayName: string;
+export interface ContactMessage extends MessageInfo, ContactContent {
   vcard: string;
 }
 
-export interface LocationMessage extends MessageInfo {
-  type: "location";
-  latitude: number;
-  longitude: number;
+export interface LocationMessage extends MessageInfo, LocationContent {
   name?: string;
   address?: string;
 }

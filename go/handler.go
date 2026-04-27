@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
@@ -146,6 +147,61 @@ func (s *Session) handleWhatsmeowEvent(evt interface{}) {
 	}
 }
 
+func extractQuotedInfo(ci *waE2E.ContextInfo, fallbackSender string) map[string]interface{} {
+	if ci == nil || ci.StanzaID == nil {
+		return nil
+	}
+
+	sender := ci.GetParticipant()
+	if sender == "" {
+		sender = fallbackSender
+	}
+
+	quoted := map[string]interface{}{
+		"messageId": ci.GetStanzaID(),
+		"sender":    sender,
+	}
+
+	if qm := ci.GetQuotedMessage(); qm != nil {
+		switch {
+		case qm.GetConversation() != "":
+			quoted["type"] = "text"
+			quoted["text"] = qm.GetConversation()
+		case qm.GetExtendedTextMessage() != nil:
+			quoted["type"] = "text"
+			quoted["text"] = qm.GetExtendedTextMessage().GetText()
+		case qm.GetImageMessage() != nil:
+			quoted["type"] = "image"
+			quoted["caption"] = qm.GetImageMessage().GetCaption()
+			quoted["mimetype"] = qm.GetImageMessage().GetMimetype()
+		case qm.GetVideoMessage() != nil:
+			quoted["type"] = "video"
+			quoted["caption"] = qm.GetVideoMessage().GetCaption()
+			quoted["mimetype"] = qm.GetVideoMessage().GetMimetype()
+		case qm.GetAudioMessage() != nil:
+			quoted["type"] = "audio"
+			quoted["mimetype"] = qm.GetAudioMessage().GetMimetype()
+		case qm.GetDocumentMessage() != nil:
+			quoted["type"] = "document"
+			quoted["caption"] = qm.GetDocumentMessage().GetCaption()
+			quoted["mimetype"] = qm.GetDocumentMessage().GetMimetype()
+			quoted["filename"] = qm.GetDocumentMessage().GetFileName()
+		case qm.GetStickerMessage() != nil:
+			quoted["type"] = "sticker"
+			quoted["mimetype"] = qm.GetStickerMessage().GetMimetype()
+		case qm.GetContactMessage() != nil:
+			quoted["type"] = "contact"
+			quoted["displayName"] = qm.GetContactMessage().GetDisplayName()
+		case qm.GetLocationMessage() != nil:
+			quoted["type"] = "location"
+			quoted["latitude"] = qm.GetLocationMessage().GetDegreesLatitude()
+			quoted["longitude"] = qm.GetLocationMessage().GetDegreesLongitude()
+		}
+	}
+
+	return quoted
+}
+
 func (s *Session) handleMessageEvent(v *events.Message) {
 	if v.Info.IsFromMe && !subscribeOutgoing {
 		return
@@ -176,6 +232,13 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		return
 	}
 
+	// Helper to attach quoted message info from ContextInfo
+	attachQuoted := func(ci *waE2E.ContextInfo) {
+		if q := extractQuotedInfo(ci, v.Info.Chat.String()); q != nil {
+			base["quotedMessage"] = q
+		}
+	}
+
 	switch {
 	case msg.GetConversation() != "":
 		base["type"] = "text"
@@ -184,6 +247,7 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 	case msg.GetExtendedTextMessage() != nil:
 		base["type"] = "text"
 		base["text"] = msg.GetExtendedTextMessage().GetText()
+		attachQuoted(msg.GetExtendedTextMessage().GetContextInfo())
 
 	case msg.GetImageMessage() != nil:
 		im := msg.GetImageMessage()
@@ -200,6 +264,7 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		if im.GetHeight() > 0 {
 			base["height"] = im.GetHeight()
 		}
+		attachQuoted(im.GetContextInfo())
 
 	case msg.GetVideoMessage() != nil:
 		vm := msg.GetVideoMessage()
@@ -216,12 +281,14 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		if vm.GetHeight() > 0 {
 			base["height"] = vm.GetHeight()
 		}
+		attachQuoted(vm.GetContextInfo())
 
 	case msg.GetAudioMessage() != nil:
 		am := msg.GetAudioMessage()
 		base["type"] = "audio"
 		base["mimetype"] = am.GetMimetype()
 		base["mediaRef"] = encodeMediaRef("audio", am)
+		attachQuoted(am.GetContextInfo())
 
 	case msg.GetDocumentMessage() != nil:
 		dm := msg.GetDocumentMessage()
@@ -230,18 +297,21 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["mimetype"] = dm.GetMimetype()
 		base["filename"] = dm.GetFileName()
 		base["mediaRef"] = encodeMediaRef("document", dm)
+		attachQuoted(dm.GetContextInfo())
 
 	case msg.GetStickerMessage() != nil:
 		sm := msg.GetStickerMessage()
 		base["type"] = "sticker"
 		base["mimetype"] = sm.GetMimetype()
 		base["mediaRef"] = encodeMediaRef("sticker", sm)
+		attachQuoted(sm.GetContextInfo())
 
 	case msg.GetContactMessage() != nil:
 		cm := msg.GetContactMessage()
 		base["type"] = "contact"
 		base["displayName"] = cm.GetDisplayName()
 		base["vcard"] = cm.GetVcard()
+		attachQuoted(cm.GetContextInfo())
 
 	case msg.GetLocationMessage() != nil:
 		lm := msg.GetLocationMessage()
@@ -250,6 +320,7 @@ func (s *Session) handleMessageEvent(v *events.Message) {
 		base["longitude"] = lm.GetDegreesLongitude()
 		base["name"] = lm.GetName()
 		base["address"] = lm.GetAddress()
+		attachQuoted(lm.GetContextInfo())
 
 	default:
 		return
