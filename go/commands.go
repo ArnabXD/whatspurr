@@ -35,6 +35,11 @@ func (s *Session) buildCommandHandlers() map[string]commandHandler {
 		"get_status_privacy": s.cmdGetStatusPrivacy,
 		"edit_message":       s.cmdEditMessage,
 		"delete_message":     s.cmdDeleteMessage,
+		"is_on_whatsapp":    s.cmdIsOnWhatsApp,
+		"get_user_info":     s.cmdGetUserInfo,
+		"get_profile_picture": s.cmdGetProfilePicture,
+		"subscribe_presence": s.cmdSubscribePresence,
+		"get_business_profile": s.cmdGetBusinessProfile,
 	}
 }
 
@@ -594,5 +599,188 @@ func (s *Session) cmdDeleteMessage(cmd Command) Response {
 
 	return Response{Result: map[string]interface{}{
 		"messageId": resp.ID,
+	}}
+}
+
+// ── Contact / User Info ─────────────────────────────────────────────────────
+
+func (s *Session) cmdIsOnWhatsApp(cmd Command) Response {
+	rawPhones, ok := cmd.Params["phones"].([]interface{})
+	if !ok || len(rawPhones) == 0 {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing or empty 'phones' parameter"}}
+	}
+
+	phones := make([]string, len(rawPhones))
+	for i, raw := range rawPhones {
+		p, ok := raw.(string)
+		if !ok || p == "" {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("invalid phone at index %d", i)}}
+		}
+		phones[i] = p
+	}
+
+	bridgeLog.Debugf("[%s] is_on_whatsapp phones=%v", s.name, phones)
+	results, err := s.client.IsOnWhatsApp(context.Background(), phones)
+	if err != nil {
+		bridgeLog.Warnf("[%s] is_on_whatsapp error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1006, Message: "is_on_whatsapp failed"}}
+	}
+
+	entries := make([]map[string]interface{}, len(results))
+	for i, r := range results {
+		entry := map[string]interface{}{
+			"query": r.Query,
+			"jid":   r.JID.String(),
+			"isIn":  r.IsIn,
+		}
+		if r.VerifiedName != nil && r.VerifiedName.Details != nil {
+			entry["verifiedName"] = r.VerifiedName.Details.GetVerifiedName()
+		}
+		entries[i] = entry
+	}
+
+	return Response{Result: map[string]interface{}{"results": entries}}
+}
+
+func (s *Session) cmdGetUserInfo(cmd Command) Response {
+	rawJids, ok := cmd.Params["jids"].([]interface{})
+	if !ok || len(rawJids) == 0 {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing or empty 'jids' parameter"}}
+	}
+
+	jids := make([]types.JID, len(rawJids))
+	for i, raw := range rawJids {
+		str, ok := raw.(string)
+		if !ok || str == "" {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("invalid JID at index %d", i)}}
+		}
+		jid, err := types.ParseJID(str)
+		if err != nil {
+			return Response{Error: &ErrorInfo{Code: 1003, Message: fmt.Sprintf("invalid JID '%s': %v", str, err)}}
+		}
+		jids[i] = jid
+	}
+
+	bridgeLog.Debugf("[%s] get_user_info jids=%v", s.name, jids)
+	infos, err := s.client.GetUserInfo(context.Background(), jids)
+	if err != nil {
+		bridgeLog.Warnf("[%s] get_user_info error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1006, Message: "get_user_info failed"}}
+	}
+
+	users := make(map[string]interface{})
+	for jid, info := range infos {
+		devices := make([]string, len(info.Devices))
+		for j, d := range info.Devices {
+			devices[j] = d.String()
+		}
+		entry := map[string]interface{}{
+			"status":    info.Status,
+			"pictureId": info.PictureID,
+			"devices":   devices,
+		}
+		if info.VerifiedName != nil && info.VerifiedName.Details != nil {
+			entry["verifiedName"] = info.VerifiedName.Details.GetVerifiedName()
+		}
+		users[jid.String()] = entry
+	}
+
+	return Response{Result: map[string]interface{}{"users": users}}
+}
+
+func (s *Session) cmdGetProfilePicture(cmd Command) Response {
+	jid, err := s.parseJID(cmd.Params, "jid")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	preview, _ := cmd.Params["preview"].(bool)
+	existingId, _ := cmd.Params["existingId"].(string)
+
+	params := &whatsmeow.GetProfilePictureParams{
+		Preview:    preview,
+		ExistingID: existingId,
+	}
+
+	bridgeLog.Debugf("[%s] get_profile_picture jid=%s preview=%v", s.name, jid.String(), preview)
+	info, err := s.client.GetProfilePictureInfo(context.Background(), jid, params)
+	if err != nil {
+		bridgeLog.Warnf("[%s] get_profile_picture error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1006, Message: "get_profile_picture failed"}}
+	}
+
+	if info == nil {
+		return Response{Result: map[string]interface{}{"picture": nil}}
+	}
+
+	return Response{Result: map[string]interface{}{
+		"picture": map[string]interface{}{
+			"url":  info.URL,
+			"id":   info.ID,
+			"type": info.Type,
+		},
+	}}
+}
+
+func (s *Session) cmdSubscribePresence(cmd Command) Response {
+	jid, err := s.parseJID(cmd.Params, "jid")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	bridgeLog.Debugf("[%s] subscribe_presence jid=%s", s.name, jid.String())
+	err = s.client.SubscribePresence(context.Background(), jid)
+	if err != nil {
+		bridgeLog.Warnf("[%s] subscribe_presence error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1007, Message: "subscribe_presence failed"}}
+	}
+
+	return Response{Result: map[string]interface{}{"ok": true}}
+}
+
+func (s *Session) cmdGetBusinessProfile(cmd Command) Response {
+	jid, err := s.parseJID(cmd.Params, "jid")
+	if err != nil {
+		return Response{Error: &ErrorInfo{Code: 1003, Message: err.Error()}}
+	}
+
+	bridgeLog.Debugf("[%s] get_business_profile jid=%s", s.name, jid.String())
+	profile, err := s.client.GetBusinessProfile(context.Background(), jid)
+	if err != nil {
+		bridgeLog.Warnf("[%s] get_business_profile error: %v", s.name, err)
+		return Response{Error: &ErrorInfo{Code: 1006, Message: "get_business_profile failed"}}
+	}
+
+	if profile == nil {
+		return Response{Result: map[string]interface{}{"profile": nil}}
+	}
+
+	categories := make([]map[string]interface{}, len(profile.Categories))
+	for i, c := range profile.Categories {
+		categories[i] = map[string]interface{}{
+			"id":   c.ID,
+			"name": c.Name,
+		}
+	}
+
+	hours := make([]map[string]interface{}, len(profile.BusinessHours))
+	for i, h := range profile.BusinessHours {
+		hours[i] = map[string]interface{}{
+			"dayOfWeek": h.DayOfWeek,
+			"mode":      h.Mode,
+			"openTime":  h.OpenTime,
+			"closeTime": h.CloseTime,
+		}
+	}
+
+	return Response{Result: map[string]interface{}{
+		"profile": map[string]interface{}{
+			"jid":           profile.JID.String(),
+			"address":       profile.Address,
+			"email":         profile.Email,
+			"categories":    categories,
+			"businessHours": hours,
+			"timezone":      profile.BusinessHoursTimeZone,
+		},
 	}}
 }
