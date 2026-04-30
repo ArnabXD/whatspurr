@@ -2,14 +2,21 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { Bridge } from "./bridge.ts";
 import type {
+  BusinessProfile,
   DownloadResult,
   GroupInfo,
+  IsOnWhatsAppResult,
   JID,
   MediaSendOptions,
+  ProfilePictureInfo,
   QuoteOptions,
   SendOptions,
   SendResult,
+  StatusPrivacy,
+  UserInfo,
 } from "./types.ts";
+
+const STATUS_BROADCAST_JID: JID = "status@broadcast";
 
 const DEFAULT_DOWNLOAD_DIR = "./downloads";
 
@@ -138,5 +145,85 @@ export class Api {
 
   async setPresence(type: "available" | "unavailable"): Promise<void> {
     await this.send("set_presence", { type });
+  }
+
+  // ── Edit / Delete ─────────────────────────────────────────────────────
+
+  /** Edit a previously sent text message */
+  async editMessage(chat: JID, messageId: string, newText: string): Promise<SendResult> {
+    const result = await this.send("edit_message", { chat, messageId, text: newText });
+    return { messageId: result.messageId as string };
+  }
+
+  /** Delete (revoke) a previously sent message ("delete for everyone") */
+  async deleteMessage(chat: JID, messageId: string): Promise<SendResult> {
+    const result = await this.send("delete_message", { chat, messageId });
+    return { messageId: result.messageId as string };
+  }
+
+  // ── Contact / User Info ─────────────────────────────────────────────────
+
+  /** Check if phone numbers are registered on WhatsApp */
+  async isOnWhatsApp(phones: string[]): Promise<IsOnWhatsAppResult[]> {
+    const result = await this.send("is_on_whatsapp", { phones });
+    return (result.results as IsOnWhatsAppResult[]) ?? [];
+  }
+
+  /** Get user info (status, picture ID, devices) for one or more JIDs */
+  async getUserInfo(jids: JID[]): Promise<Record<JID, UserInfo>> {
+    const result = await this.send("get_user_info", { jids });
+    return (result.users as Record<JID, UserInfo>) ?? {};
+  }
+
+  /** Get profile picture URL for a user or group */
+  async getProfilePicture(
+    jid: JID,
+    options: { preview?: boolean; existingId?: string } = {},
+  ): Promise<ProfilePictureInfo | null> {
+    const result = await this.send("get_profile_picture", {
+      jid,
+      preview: options.preview,
+      existingId: options.existingId,
+    });
+    return (result.picture as ProfilePictureInfo) ?? null;
+  }
+
+  /** Subscribe to presence updates (online/offline) for a JID */
+  async subscribePresence(jid: JID): Promise<void> {
+    await this.send("subscribe_presence", { jid });
+  }
+
+  /** Get business profile for a WhatsApp Business account */
+  async getBusinessProfile(jid: JID): Promise<BusinessProfile | null> {
+    const result = await this.send("get_business_profile", { jid });
+    return (result.profile as BusinessProfile) ?? null;
+  }
+
+  // ── Status / Stories ────────────────────────────────────────────────────
+
+  /** Set the "About" text status message */
+  async setStatusMessage(message: string): Promise<void> {
+    await this.send("set_status_message", { message });
+  }
+
+  /** Get status privacy settings (who can see your stories) */
+  async getStatusPrivacy(): Promise<StatusPrivacy[]> {
+    const result = await this.send("get_status_privacy");
+    return (result.privacy as StatusPrivacy[]) ?? [];
+  }
+
+  /** Post a text story to status */
+  async postTextStatus(text: string): Promise<SendResult> {
+    return this.sendMessage(STATUS_BROADCAST_JID, text);
+  }
+
+  /** Post an image story to status */
+  async postImageStatus(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    return this.sendImage(STATUS_BROADCAST_JID, data, options);
+  }
+
+  /** Post a video story to status */
+  async postVideoStatus(data: Buffer | Uint8Array, options: MediaSendOptions = {}): Promise<SendResult> {
+    return this.sendVideo(STATUS_BROADCAST_JID, data, options);
   }
 }

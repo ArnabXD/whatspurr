@@ -29,6 +29,53 @@ export interface WhatsAppConfig {
 // ── Messages ─────────────────────────────────────────────────────────────────
 export type MessageType = "text" | "image" | "video" | "audio" | "document" | "sticker" | "contact" | "location";
 
+// ── Content shapes (shared by messages and quoted messages) ─────────────────
+export interface TextContent {
+  type: "text";
+  text: string;
+}
+
+export interface MediaContent {
+  type: "image" | "video" | "audio" | "document" | "sticker";
+  caption?: string;
+  mimetype: string;
+  filename?: string;
+}
+
+export interface ContactContent {
+  type: "contact";
+  displayName: string;
+}
+
+export interface LocationContent {
+  type: "location";
+  latitude: number;
+  longitude: number;
+}
+
+// ── Quoted messages ─────────────────────────────────────────────────────────
+export interface QuotedMessageBase {
+  messageId: string;
+  sender: JID;
+}
+
+export interface QuotedTextMessage extends QuotedMessageBase, TextContent {}
+export interface QuotedMediaMessage extends QuotedMessageBase, MediaContent {}
+export interface QuotedContactMessage extends QuotedMessageBase, ContactContent {}
+export interface QuotedLocationMessage extends QuotedMessageBase, LocationContent {}
+
+export interface QuotedUnknownMessage extends QuotedMessageBase {
+  type?: undefined;
+}
+
+export type QuotedMessage =
+  | QuotedTextMessage
+  | QuotedMediaMessage
+  | QuotedContactMessage
+  | QuotedLocationMessage
+  | QuotedUnknownMessage;
+
+// ── Messages ────────────────────────────────────────────────────────────────
 export interface MessageInfo {
   id: string;
   from: JID;
@@ -37,18 +84,13 @@ export interface MessageInfo {
   timestamp: number;
   isGroup: boolean;
   isFromMe: boolean;
+  /** Present when this message is a reply to another message */
+  quotedMessage?: QuotedMessage;
 }
 
-export interface TextMessage extends MessageInfo {
-  type: "text";
-  text: string;
-}
+export interface TextMessage extends MessageInfo, TextContent {}
 
-export interface MediaMessage extends MessageInfo {
-  type: "image" | "video" | "audio" | "document" | "sticker";
-  caption?: string;
-  mimetype: string;
-  filename?: string;
+export interface MediaMessage extends MessageInfo, MediaContent {
   /** Opaque ref used to download media via bridge */
   mediaRef: string;
   /** Whether this is a view-once media message */
@@ -59,16 +101,11 @@ export interface MediaMessage extends MessageInfo {
   height?: number;
 }
 
-export interface ContactMessage extends MessageInfo {
-  type: "contact";
-  displayName: string;
+export interface ContactMessage extends MessageInfo, ContactContent {
   vcard: string;
 }
 
-export interface LocationMessage extends MessageInfo {
-  type: "location";
-  latitude: number;
-  longitude: number;
+export interface LocationMessage extends MessageInfo, LocationContent {
   name?: string;
   address?: string;
 }
@@ -137,6 +174,69 @@ export interface GroupUpdateEvent {
   field: "name" | "topic" | "photo" | "locked" | "announce";
   value: string;
   updatedBy: JID;
+}
+
+// ── Contact / User Info ─────────────────────────────────────────────────────
+
+export interface IsOnWhatsAppResult {
+  /** The original query phone number */
+  query: string;
+  /** The canonical WhatsApp JID */
+  jid: JID;
+  /** Whether the phone number is registered on WhatsApp */
+  isIn: boolean;
+  /** Verified business name, if the number is a business */
+  verifiedName?: string;
+}
+
+export interface UserInfo {
+  /** User's "About" status text */
+  status: string;
+  /** Profile picture ID (use with getProfilePicture to get URL) */
+  pictureId: string;
+  /** List of device JIDs linked to this account */
+  devices: JID[];
+  /** Verified business name, if applicable */
+  verifiedName?: string;
+}
+
+export interface ProfilePictureInfo {
+  /** Direct URL to download the profile picture */
+  url: string;
+  /** Picture ID (matches UserInfo.pictureId) */
+  id: string;
+  /** Picture type: "image" (full res) or "preview" (thumbnail) */
+  type: string;
+}
+
+export interface BusinessCategory {
+  id: string;
+  name: string;
+}
+
+export interface BusinessHoursConfig {
+  dayOfWeek: string;
+  mode: string;
+  openTime: string;
+  closeTime: string;
+}
+
+export interface BusinessProfile {
+  jid: JID;
+  address: string;
+  email: string;
+  categories: BusinessCategory[];
+  businessHours: BusinessHoursConfig[];
+  timezone: string;
+}
+
+// ── Status / Stories ────────────────────────────────────────────────────────
+export type StatusPrivacyType = "contacts" | "blacklist" | "whitelist";
+
+export interface StatusPrivacy {
+  type: StatusPrivacyType;
+  list: JID[];
+  isDefault: boolean;
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
