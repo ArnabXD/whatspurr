@@ -12,6 +12,9 @@ const DEFAULT_BINARY_REPO = "ArnabXD/whatspurr";
 const STARTUP_TIMEOUT_MS = 10_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const LISTEN_ADDR_RE = /^127\.0\.0\.1:\d+$/;
+const WS_PING_INTERVAL_MS = 20_000;
+const WS_RECONNECT_BASE_MS = 1_000;
+const WS_RECONNECT_MAX_MS = 30_000;
 
 function getPlatformKey(): { goos: string; goarch: string; ext: string } {
   const os = platform();
@@ -98,6 +101,10 @@ export class Bridge extends EventEmitter {
   private authToken: string;
   private config: WhatsAppConfig;
   private _ready = false;
+  private _stopping = false;
+  private _pingInterval: ReturnType<typeof setInterval> | null = null;
+  private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private _reconnectDelay = WS_RECONNECT_BASE_MS;
 
   constructor(config: WhatsAppConfig = {}) {
     super();
@@ -206,6 +213,12 @@ export class Bridge extends EventEmitter {
 
       this.ws.onopen = () => {
         this._ready = true;
+        this._reconnectDelay = WS_RECONNECT_BASE_MS;
+        this._pingInterval = setInterval(() => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ ping: true }));
+          }
+        }, WS_PING_INTERVAL_MS);
         resolve();
       };
 
@@ -218,13 +231,34 @@ export class Bridge extends EventEmitter {
 
       this.ws.onclose = () => {
         this._ready = false;
+        if (this._pingInterval) {
+          clearInterval(this._pingInterval);
+          this._pingInterval = null;
+        }
         this.emit("ws_close");
+        if (!this._stopping) {
+          this._scheduleReconnect();
+        }
       };
 
       this.ws.onmessage = (ev) => {
         this.handleMessage(ev.data as string);
       };
     });
+  }
+
+  private _scheduleReconnect(): void {
+    const delay = this._reconnectDelay;
+    this._reconnectDelay = Math.min(this._reconnectDelay * 2, WS_RECONNECT_MAX_MS);
+    this._reconnectTimer = setTimeout(async () => {
+      this._reconnectTimer = null;
+      if (this._stopping) return;
+      try {
+        await this.connectWs();
+      } catch {
+        // connectWs onclose will trigger another attempt if still not stopping
+      }
+    }, delay);
   }
 
   private handleMessage(raw: string): void {
@@ -235,6 +269,8 @@ export class Bridge extends EventEmitter {
       this.emit("error", new Error(`Invalid JSON from bridge: ${raw.slice(0, 200)}`));
       return;
     }
+
+    if ("pong" in msg) return;
 
     // Event push from Go
     if ("type" in msg && msg.type === "event") {
@@ -292,7 +328,17 @@ export class Bridge extends EventEmitter {
   }
 
   async stop(): Promise<void> {
+    this._stopping = true;
     this._ready = false;
+
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+    if (this._pingInterval) {
+      clearInterval(this._pingInterval);
+      this._pingInterval = null;
+    }
 
     // Reject all pending commands
     for (const [, { reject }] of this.pending) {
