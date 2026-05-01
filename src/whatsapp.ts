@@ -13,6 +13,7 @@ export class WhatsApp extends Composer<Context> {
   private boundEventHandler: ((data: SessionEventData) => void) | null = null;
   private boundLogHandler: ((line: string) => void) | null = null;
   private boundExitHandler: ((info: { code: number | null; signal: string | null }) => void) | null = null;
+  private boundWsCloseHandler: (() => void) | null = null;
   private started = false;
 
   constructor(config?: WhatsAppConfig);
@@ -62,6 +63,9 @@ export class WhatsApp extends Composer<Context> {
 
       this.boundExitHandler = (info: { code: number | null; signal: string | null }) => this.onBridgeExit(info);
       this.bridge.on("exit", this.boundExitHandler);
+
+      this.boundWsCloseHandler = () => this.onWsClose();
+      this.bridge.on("ws_close", this.boundWsCloseHandler);
     }
 
     // Handle WhatsApp events from the bridge (filtered by session)
@@ -89,6 +93,10 @@ export class WhatsApp extends Composer<Context> {
     if (this.boundExitHandler) {
       this.bridge.off("exit", this.boundExitHandler);
       this.boundExitHandler = null;
+    }
+    if (this.boundWsCloseHandler) {
+      this.bridge.off("ws_close", this.boundWsCloseHandler);
+      this.boundWsCloseHandler = null;
     }
   }
 
@@ -126,6 +134,9 @@ export class WhatsApp extends Composer<Context> {
   protected onLog(line: string): void {
     console.log(`[bridge] ${line}`);
   }
+
+  /** Override to handle WebSocket disconnects (auto-reconnect is built-in; override for custom logic) */
+  protected onWsClose(): void {}
 
   /** Override to handle bridge process exit */
   protected onBridgeExit(info: { code: number | null; signal: string | null }): void {

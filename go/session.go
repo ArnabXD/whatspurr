@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -158,6 +159,10 @@ func (m *SessionManager) serveConnected(conn *websocket.Conn) {
 				bridgeLog.Warnf("WS read error: %v", err)
 			}
 			return
+		}
+
+		if bytes.Contains(data, []byte(`"ping"`)) {
+			continue
 		}
 
 		var cmd Command
