@@ -41,6 +41,7 @@ dist/
 
 # Session data
 session/
+downloads/
 
 # VitePress
 docs/.vitepress/dist
