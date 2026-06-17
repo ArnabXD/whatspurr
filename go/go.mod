@@ -3,8 +3,8 @@ module github.com/user/whatsmeow-ts/bridge
 go 1.25.0
 
 require (
-	github.com/coder/websocket v1.8.14
-	go.mau.fi/whatsmeow v0.0.0-20260611094716-089932318bc2
+	github.com/coder/websocket v1.8.15
+	go.mau.fi/whatsmeow v0.0.0-20260616120636-eaa388b4e537
 	golang.org/x/image v0.39.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.34.5
@@ -24,13 +24,13 @@ require (
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.27 // indirect
 	go.mau.fi/libsignal v0.2.2 // indirect
-	go.mau.fi/util v0.9.9 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	go.mau.fi/util v0.9.10 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect
