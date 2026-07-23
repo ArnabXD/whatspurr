@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/coder/websocket v1.8.15
-	go.mau.fi/whatsmeow v0.0.0-20260716095330-85d99080dee8
+	go.mau.fi/whatsmeow v0.0.0-20260722203353-e9a033b24933
 	golang.org/x/image v0.41.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.34.5
@@ -24,7 +24,7 @@ require (
 	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.27 // indirect
 	go.mau.fi/libsignal v0.2.2 // indirect
-	go.mau.fi/util v0.9.11 // indirect
+	go.mau.fi/util v0.9.12-0.20260717235539-f9ffa7eca58d // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597 // indirect
 	golang.org/x/net v0.57.0 // indirect
