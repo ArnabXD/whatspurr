@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/coder/websocket v1.8.15
-	go.mau.fi/whatsmeow v0.0.0-20260722203353-e9a033b24933
+	go.mau.fi/whatsmeow v0.0.0-20260730092514-662ad1dc6900
 	golang.org/x/image v0.41.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.34.5
