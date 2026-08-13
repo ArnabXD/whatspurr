@@ -512,7 +512,7 @@ func (s *Session) cmdSetStatusMessage(cmd Command) Response {
 		return Response{Error: &ErrorInfo{Code: 1003, Message: "missing 'message' parameter"}}
 	}
 
-	if err := s.client.SetStatusMessage(context.Background(), msg); err != nil {
+	if err := s.client.SetStatusMessage(context.Background(), types.SetStatusInput{Text: &msg}); err != nil {
 		bridgeLog.Warnf("[%s] set_status_message error: %v", s.name, err)
 		return Response{Error: &ErrorInfo{Code: 1007, Message: "failed to set status message"}}
 	}
